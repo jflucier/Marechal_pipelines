@@ -14,6 +14,7 @@ def setup_multimer_fold(foldsheet,output_dir):
         if not os.path.exists(workdir):
             os.makedirs(workdir)
 
+        print(f"Generating fold job {index} script in {workdir}")
         # generate fasta
         fasta_out = os.path.join(workdir, f"{index}.fa")
         generate_fasta(
@@ -49,6 +50,8 @@ def setup_multimer_fold(foldsheet,output_dir):
             result = src.substitute(tmpl_data)
             with open(os.path.join(workdir, f"submit_colabfold_multimer.{index}.sh"), 'w') as out:
                 out.write(result)
+
+        print(f"To submit, please run: sbatch submit_colabfold_multimer.{index}.sh")
 
 def generate_pdb(wd,pdb_str):
     pdb_dir = os.path.join(wd, "pdb")
