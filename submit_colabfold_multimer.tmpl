@@ -45,7 +45,7 @@ fi
 echo "running AF2multimer-analysis"
 mkdir $outdir/unrelax
 mv $outdir/*unrelax_* $outdir/unrelax/
-python /home/jflucier/projects/def-marechal/programs/AF2multimer-analysis/colabfold_analysis.py $outdir
+python $script_path/AF2multimer-analysis/colabfold_analysis.py $outdir
 mv $out_analysis/* $outdir/
 #rm -r $out_analysis
 

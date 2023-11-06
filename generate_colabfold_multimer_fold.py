@@ -34,19 +34,16 @@ def setup_multimer_fold(foldsheet,output_dir):
             generate_pdb(workdir,row["protein2_PDB"])
 
         # gen submit script:
-        # $colabfold_db=/home/jflucier/scratch/colabfold_db
-        # $outdir=workdir
-        # $fasta=fasta_out
-        # $out_analysis=f"{workdir}_analysis"
+        script_path = os.path.dirname(__file__)
         tmpl_data = {
             'job_name': f"{index}",
             'colabfold_db': '/home/jflucier/scratch/colabfold_db',
             'outdir': f"{workdir}",
             'fasta': f"{fasta_out}",
-            'out_analysis': f"{workdir}_analysis"
+            'out_analysis': f"{workdir}_analysis",
+            'script_path': f"{script_path}"
         }
 
-        script_path=os.path.dirname(__file__)
         with open(os.path.join(script_path, "submit_colabfold_multimer.tmpl"), 'r') as f:
             src = Template(f.read())
             result = src.substitute(tmpl_data)
