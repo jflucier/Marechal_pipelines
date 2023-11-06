@@ -1,0 +1,54 @@
+#!/bin/bash
+
+#SBATCH --job-name=POLK_Ubiquitin
+#SBATCH -D /storage/Documents/service/biologie/marechal/programs/Marechal_pipelines/example/POLK_Ubiquitin
+#SBATCH -o /storage/Documents/service/biologie/marechal/programs/Marechal_pipelines/example/POLK_Ubiquitin/slurm-%A_%a.out
+#SBATCH --account=def-marechal
+#SBATCH --time=24:00:00
+#SBATCH --cpus-per-task=8
+#SBATCH --gres=gpu:1
+#SBATCH --mem=40G
+
+module load gcc/9.3.0 cuda/11.4 openmpi/4.0.3 mmseqs2/14-7e284 openmm-alphafold/7.5.1 httpproxy/1.0 hh-suite/3.3.0 hmmer/3.2.1
+source /home/jflucier/projects/def-marechal/programs/colabfold_env/bin/activate
+
+export TF_FORCE_UNIFIED_MEMORY="1"
+export XLA_PYTHON_CLIENT_MEM_FRACTION="4.0"
+export XLA_PYTHON_CLIENT_ALLOCATOR="platform"
+export TF_FORCE_GPU_ALLOW_GROWTH="true"
+
+if [ -z "$(ls -A /storage/Documents/service/biologie/marechal/programs/Marechal_pipelines/example/POLK_Ubiquitin/pdb)" ]; then
+  echo "No pdb provided, will fold without templates"
+  echo "running colabfold on /storage/Documents/service/biologie/marechal/programs/Marechal_pipelines/example/POLK_Ubiquitin/POLK_Ubiquitin.fa"
+  colabfold_batch \
+  --use-gpu-relax --amber --num-relax 3 \
+  --num-models 3 \
+  --num-recycle 30 --recycle-early-stop-tolerance 0.5 \
+  --model-type alphafold2_multimer_v3 \
+  --data /home/jflucier/scratch/colabfold_db \
+  /storage/Documents/service/biologie/marechal/programs/Marechal_pipelines/example/POLK_Ubiquitin/POLK_Ubiquitin.fa \
+  /storage/Documents/service/biologie/marechal/programs/Marechal_pipelines/example/POLK_Ubiquitin
+else
+  echo "PDB provided, will fold with templates: $(ls -A /storage/Documents/service/biologie/marechal/programs/Marechal_pipelines/example/POLK_Ubiquitin/pdb)"
+  echo "running colabfold on /storage/Documents/service/biologie/marechal/programs/Marechal_pipelines/example/POLK_Ubiquitin/POLK_Ubiquitin.fa"
+  colabfold_batch \
+  --use-gpu-relax --amber --num-relax 3 \
+  --num-models 3 \
+  --num-recycle 30 --recycle-early-stop-tolerance 0.5 \
+  --templates --custom-template-path /storage/Documents/service/biologie/marechal/programs/Marechal_pipelines/example/POLK_Ubiquitin/pdb \
+  --model-type alphafold2_multimer_v3 \
+  --data /home/jflucier/scratch/colabfold_db \
+  /storage/Documents/service/biologie/marechal/programs/Marechal_pipelines/example/POLK_Ubiquitin/POLK_Ubiquitin.fa \
+  /storage/Documents/service/biologie/marechal/programs/Marechal_pipelines/example/POLK_Ubiquitin
+fi
+
+echo "running AF2multimer-analysis"
+mkdir /storage/Documents/service/biologie/marechal/programs/Marechal_pipelines/example/POLK_Ubiquitin/unrelax
+mv /storage/Documents/service/biologie/marechal/programs/Marechal_pipelines/example/POLK_Ubiquitin/*unrelax_* /storage/Documents/service/biologie/marechal/programs/Marechal_pipelines/example/POLK_Ubiquitin/unrelax/
+python /home/jflucier/projects/def-marechal/programs/AF2multimer-analysis/colabfold_analysis.py /storage/Documents/service/biologie/marechal/programs/Marechal_pipelines/example/POLK_Ubiquitin
+mv /storage/Documents/service/biologie/marechal/programs/Marechal_pipelines/example/POLK_Ubiquitin_analysis/* /storage/Documents/service/biologie/marechal/programs/Marechal_pipelines/example/POLK_Ubiquitin/
+#rm -r /storage/Documents/service/biologie/marechal/programs/Marechal_pipelines/example/POLK_Ubiquitin_analysis
+
+
+echo "done!"
+
