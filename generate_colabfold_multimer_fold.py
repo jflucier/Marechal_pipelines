@@ -47,7 +47,7 @@ def setup_multimer_fold(foldsheet,output_dir):
         with open(os.path.join(script_path, "submit_colabfold_multimer.tmpl"), 'r') as f:
             src = Template(f.read())
             result = src.substitute(tmpl_data)
-            with open(os.path.join(workdir, f"submit_colabfold_multimer.{index}.tmpl"), 'w') as out:
+            with open(os.path.join(workdir, f"submit_colabfold_multimer.{index}.sh"), 'w') as out:
                 out.write(result)
 
 def generate_pdb(wd,pdb_str):
