@@ -43,12 +43,15 @@ else
 fi
 
 echo "running AF2multimer-analysis"
-mkdir -p $outdir/unrelax
-mv $outdir/*unrelax_* $outdir/unrelax/
+mkdir -p $outdir/unrelaxed
+mv $outdir/*unrelaxed_* $outdir/unrelaxed/
 python $script_path/AF2multimer-analysis/colabfold_analysis.py $outdir
 mv $out_analysis/* $outdir/
 #rm -r $out_analysis
 
+echo "zipping results"
+cd $outdir/../
+zip -r $job_name.zip $job_name/*
 
 echo "done!"
 
