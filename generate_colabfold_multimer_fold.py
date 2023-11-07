@@ -8,6 +8,10 @@ from string import Template
 def setup_multimer_fold(foldsheet,output_dir):
     folds = pd.read_csv(foldsheet, sep='\t', index_col="multimer_name")
 
+    # cleanup submission script if exists
+    if os.path.exists(os.path.join(output_dir, "submit_all_multimer_jobs.sh")):
+        os.remove(os.path.join(output_dir, "submit_all_multimer_jobs.sh"))
+
     for index, row in folds.iterrows():
         # Path
         workdir = os.path.join(output_dir, index)
