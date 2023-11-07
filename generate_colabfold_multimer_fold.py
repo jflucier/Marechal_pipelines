@@ -45,7 +45,7 @@ def setup_multimer_fold(foldsheet,output_dir):
             'script_path': f"{script_path}"
         }
 
-        print(f"Generating submission script: {workdir} ubmit_colabfold_multimer.{index}.sh\n")
+        print(f"Generating submission script: {workdir}/submit_colabfold_multimer.{index}.sh\n")
         with open(os.path.join(script_path, "submit_colabfold_multimer.tmpl"), 'r') as f:
             src = Template(f.read())
             result = src.substitute(tmpl_data)
