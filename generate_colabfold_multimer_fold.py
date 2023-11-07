@@ -51,7 +51,10 @@ def setup_multimer_fold(foldsheet,output_dir):
             with open(os.path.join(workdir, f"submit_colabfold_multimer.{index}.sh"), 'w') as out:
                 out.write(result)
 
-        print(f"### To submit, please run: sbatch {workdir}/submit_colabfold_multimer.{index}.sh ###")
+        with open(os.path.join(output_dir, "submit_all_multimer_jobs.sh"), 'a') as o:
+            o.write(f"sbatch {workdir}/submit_colabfold_multimer.{index}.sh\n")
+
+    print(f"\nTo submit, please run: sbatch {output_dir}/submit_all_multimer_jobs.sh\n")
 
 def generate_pdb(wd,pdb_str):
     pdb_dir = os.path.join(wd, "pdb")
