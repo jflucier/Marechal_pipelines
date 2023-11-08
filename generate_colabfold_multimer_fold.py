@@ -24,18 +24,18 @@ def setup_multimer_fold(foldsheet,output_dir):
         generate_fasta(
             fasta_out,
             row["protein1_name"],
-            row["protein1_nbr"],
+            int(row["protein1_nbr"]),
             row["protein1_seq"],
             row["protein2_name"],
-            row["protein2_nbr"],
+            int(row["protein2_nbr"]),
             row["protein2_seq"],
         )
 
         # if pdb is provided, generate pdb dir struct and download
-        if row["protein1_PDB"]:
+        if not pd.isna(row["protein1_PDB"]):
             generate_pdb(workdir,row["protein1_PDB"])
 
-        if row["protein2_PDB"]:
+        if not pd.isna(row["protein2_PDB"]):
             generate_pdb(workdir,row["protein2_PDB"])
 
         # gen submit script:
