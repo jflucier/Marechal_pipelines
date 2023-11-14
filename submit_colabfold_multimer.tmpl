@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -ex
+
 #SBATCH --job-name=$job_name
 #SBATCH -D $outdir
 #SBATCH -o $outdir/slurm-%A_%a.out
