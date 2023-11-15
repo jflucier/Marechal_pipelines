@@ -21,22 +21,11 @@ def setup_multimer_fold(foldsheet,output_dir):
         print(f"Generating fold job {index} script in {workdir}")
         # generate fasta
         fasta_out = os.path.join(workdir, f"{index}.fa")
-        generate_fasta(
-            fasta_out,
-            row["protein1_name"],
-            int(row["protein1_nbr"]),
-            row["protein1_seq"],
-            row["protein2_name"],
-            int(row["protein2_nbr"]),
-            row["protein2_seq"],
-        )
+        print(f"generating fasta: {fasta_out}")
+        generate_fasta(fasta_out, row)
 
         # if pdb is provided, generate pdb dir struct and download
-        if not pd.isna(row["protein1_PDB"]):
-            generate_pdb(workdir,row["protein1_PDB"])
-
-        if not pd.isna(row["protein2_PDB"]):
-            generate_pdb(workdir,row["protein2_PDB"])
+        generate_pdb(workdir, row)
 
         # gen submit script:
         script_path = os.path.dirname(__file__)
@@ -61,44 +50,58 @@ def setup_multimer_fold(foldsheet,output_dir):
 
     print(f"\nTo submit, please run: sh {output_dir}/submit_all_multimer_jobs.sh\n")
 
-def generate_pdb(wd,pdb_str):
+def generate_pdb(wd,row):
     pdb_dir = os.path.join(wd, "pdb")
     if not os.path.exists(pdb_dir):
         os.makedirs(pdb_dir)
 
-    pdb_list=pdb_str.split(",")
-    for pdb in pdb_list:
-        # download pdb if pdb id is provided
-        pdb_out = os.path.join(pdb_dir, f"{pdb.lower()}.cif")
-        if os.path.exists(pdb_out):
-            print(f"{pdb_out} already found. No need to re-download")
-        else:
-            print(f"Downloading and generating pdb: {pdb}")
-            URL = f"https://files.rcsb.org/download/{pdb}.cif"
-            response = requests.get(URL)
-            with open(pdb_out, 'w') as out:
-                out.write(response.text)
-                # modify cif file to include new section. Change name to pdb
-                # https://github.com/sokrypton/ColabFold/issues/177
-                out.write('#\n')
-                out.write('loop_\n')
-                out.write('_pdbx_audit_revision_history.ordinal\n')
-                out.write('_pdbx_audit_revision_history.data_content_type\n')
-                out.write('_pdbx_audit_revision_history.major_revision\n')
-                out.write('_pdbx_audit_revision_history.minor_revision\n')
-                out.write('_pdbx_audit_revision_history.revision_date\n')
-                out.write('1 \'Structure model\' 1 0 1971-01-01\n')
-                out.write('#\n')
+    prot_nbr = 1
+    while f"protein{prot_nbr}_PDB" in row.index:
+        if not pd.isna(row[f"protein{prot_nbr}_PDB"]):
+            pdb_str = row[f"protein{prot_nbr}_PDB"]
+            pdb_list=pdb_str.split(",")
+            for pdb in pdb_list:
+                # download pdb if pdb id is provided
+                pdb_out = os.path.join(pdb_dir, f"{pdb.lower()}.cif")
+                if os.path.exists(pdb_out):
+                    print(f"{pdb_out} already found. No need to re-download")
+                else:
+                    print(f"Downloading and generating pdb: {pdb}")
+                    URL = f"https://files.rcsb.org/download/{pdb}.cif"
+                    response = requests.get(URL)
+                    with open(pdb_out, 'w') as out:
+                        out.write(response.text)
+                        # modify cif file to include new section. Change name to pdb
+                        # https://github.com/sokrypton/ColabFold/issues/177
+                        out.write('#\n')
+                        out.write('loop_\n')
+                        out.write('_pdbx_audit_revision_history.ordinal\n')
+                        out.write('_pdbx_audit_revision_history.data_content_type\n')
+                        out.write('_pdbx_audit_revision_history.major_revision\n')
+                        out.write('_pdbx_audit_revision_history.minor_revision\n')
+                        out.write('_pdbx_audit_revision_history.revision_date\n')
+                        out.write('1 \'Structure model\' 1 0 1971-01-01\n')
+                        out.write('#\n')
 
+        prot_nbr = prot_nbr + 1
 
+def generate_fasta(fa_out,row):
+    prot_nbr = 1
+    fa_header = ""
+    fa_seq = []
+    while f"protein{prot_nbr}_name" in row.index:
+        if not pd.isna(row[f"protein{prot_nbr}_name"]):
+            p_name = row[f"protein{prot_nbr}_name"]
+            p_nbr = int(row[f"protein{prot_nbr}_nbr"])
+            p_seq = row[f"protein{prot_nbr}_seq"]
+            fa_header = fa_header + f"{p_name}_{p_nbr}_"
+            fa_seq.extend([p_seq] * p_nbr)
+        prot_nbr = prot_nbr + 1
 
-
-def generate_fasta(fa_out,p1_name,p1_nbr,p1_seq,p2_name,p2_nbr,p2_seq):
+    fa_header = fa_header[:-1]
+    seq = ":".join(fa_seq)
     with open(fa_out, 'w') as f:
-        f.write(f">{p1_name}_{p1_nbr}_{p2_name}_{p2_nbr}\n")
-        seq_items = [p1_seq] * p1_nbr
-        seq_items.extend([p2_seq] * p2_nbr)
-        seq = ":".join(seq_items)
+        f.write(f">{fa_header}\n")
         f.write(f"{seq}\n")
 
 if __name__ == '__main__':
