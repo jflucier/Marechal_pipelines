@@ -20,11 +20,11 @@ export XLA_PYTHON_CLIENT_ALLOCATOR="platform"
 export TF_FORCE_GPU_ALLOW_GROWTH="true"
 
 if [ -z "$$(ls -A $outdir/pdb)" ]; then
-  echo "No pdb provided, will fold without templates"
+  echo "No pdb provided, will fold with generic template option activated templates"
   echo "running colabfold on $fasta"
   colabfold_batch \
   --use-gpu-relax --amber --num-relax 3 \
-  --num-models 3 \
+  --num-models 3 --templates \
   --num-recycle 30 --recycle-early-stop-tolerance 0.5 \
   --model-type alphafold2_multimer_v3 \
   --data $colabfold_db \
