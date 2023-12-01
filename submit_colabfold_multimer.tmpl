@@ -26,7 +26,7 @@ if [ -z "$$(ls -A $outdir/pdb)" ]; then
   --use-gpu-relax --amber --num-relax 3 \
   --num-models 3 --templates \
   --num-recycle 30 --recycle-early-stop-tolerance 0.5 \
-  --model-type alphafold2_multimer_v3 \
+  --model-type auto \
   --data $colabfold_db \
   $fasta \
   $outdir
@@ -38,7 +38,7 @@ else
   --num-models 3 \
   --num-recycle 30 --recycle-early-stop-tolerance 0.5 \
   --templates --custom-template-path $outdir/pdb \
-  --model-type alphafold2_multimer_v3 \
+  --model-type auto \
   --data $colabfold_db \
   $fasta \
   $outdir
