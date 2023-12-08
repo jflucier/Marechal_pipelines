@@ -1,5 +1,6 @@
 import argparse
 import os
+import sys
 
 import pandas as pd
 import requests
@@ -17,6 +18,9 @@ def setup_multimer_fold(foldsheet,output_dir):
         workdir = os.path.join(output_dir, index)
         if not os.path.exists(workdir):
             os.makedirs(workdir)
+        else:
+            print(f"Multimer name duplicated: {index}. They must be unique. Please modify your input TSV: {foldsheet} ")
+            sys.exit(0)
 
         print(f"Generating fold job {index} script in {workdir}")
         # generate fasta
