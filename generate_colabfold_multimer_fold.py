@@ -35,7 +35,7 @@ def setup_multimer_fold(foldsheet,output_dir):
         script_path = os.path.dirname(__file__)
         tmpl_data = {
             'job_name': f"{index}",
-            'colabfold_db': '/home/jflucier/scratch/colabfold_db',
+            'colabfold_db': '/home/jflucier/projects/def-marechal/colabfold_db',
             'outdir': f"{workdir}",
             'fasta': f"{fasta_out}",
             'out_analysis': f"{workdir}_analysis",
