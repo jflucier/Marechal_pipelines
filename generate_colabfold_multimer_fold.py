@@ -6,7 +6,7 @@ import pandas as pd
 import requests
 from string import Template
 
-def setup_multimer_fold(foldsheet,output_dir):
+def setup_multimer_fold(foldsheet,output_dir,account,db):
     folds = pd.read_csv(foldsheet, sep='\t', index_col="multimer_name")
 
     # cleanup submission script if exists
@@ -35,11 +35,12 @@ def setup_multimer_fold(foldsheet,output_dir):
         script_path = os.path.dirname(__file__)
         tmpl_data = {
             'job_name': f"{index}",
-            'colabfold_db': '/home/jflucier/projects/def-marechal/colabfold_db',
+            'colabfold_db': db,
             'outdir': f"{workdir}",
             'fasta': f"{fasta_out}",
             'out_analysis': f"{workdir}_analysis",
-            'script_path': f"{script_path}"
+            'script_path': f"{script_path}",
+            'account': account
         }
 
         print(f"Generating submission script: {workdir}/submit_colabfold_multimer.{index}.sh\n")
@@ -128,9 +129,27 @@ if __name__ == '__main__':
         required=True
     )
 
+    argParser.add_argument(
+        "-a",
+        "--account",
+        help="your allocation account",
+        type=str,
+        default="def-marechal"
+    )
+
+    argParser.add_argument(
+        "-db",
+        "--database",
+        help="your colabfold database path",
+        type=str,
+        default="/home/jflucier/projects/def-marechal/colabfold_db"
+    )
+
     args = argParser.parse_args()
 
     setup_multimer_fold(
         args.foldsheet,
-        args.output
+        args.output,
+        args.account,
+        args.database,
     )
