@@ -7,7 +7,7 @@ Stage: build
 %environment
     export CUDA=11.7.1
     export LC_ALL=C
-    export PATH="/conda/bin:$PATH"
+    export PATH="/conda/bin:/alphafold:$PATH"
     export LD_LIBRARY_PATH="/conda/lib:$LD_LIBRARY_PATH"
 %post
     export DEBIAN_FRONTEND=noninteractive
@@ -57,6 +57,17 @@ Stage: build
     export PATH="/conda/bin:$PATH"
     export LD_LIBRARY_PATH="/conda/lib:$LD_LIBRARY_PATH"
 
+#    conda config --file /miniconda3/.condarc --add channels defaults
+#    conda config --file /miniconda3/.condarc --add channels conda-forge
+#    conda config --file /miniconda3/.condarc --add channels bioconda
+#    conda config --file /miniconda3/.condarc --add channels cruizperez
+
+    echo ". /conda/etc/profile.d/conda.sh" >> $SINGULARITY_ENVIRONMENT
+    echo "conda activate" >> $SINGULARITY_ENVIRONMENT
+
+    . /conda/etc/profile.d/conda.sh
+
+    conda activate
     conda install -y nvidia/label/cuda-11.7.1::cuda-command-line-tools
 #    conda install -qy conda==23.5.2
 #    conda install -y -c conda-forge openmm=7.7.0 cudatoolkit==${CUDA_VERSION} pdbfixer pip python=3.10
@@ -68,7 +79,9 @@ Stage: build
     pip3 install --upgrade --no-cache-dir jax==0.3.25 jaxlib==0.3.25+cuda11.cudnn805 -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
     wget -q -P /common/ https://git.scicore.unibas.ch/schwede/openstructure/-/raw/7102c63615b64735c4941278d92b554ec94415f8/modules/mol/alg/src/stereo_chemical_props.txt
 #    chmod u+s /sbin/ldconfig.real
-#    chmod o+rx -R /opt
+    chmod o+rx -R /alphafold
+    conda deactivate
+
 %runscript
 %startscript
 %test
