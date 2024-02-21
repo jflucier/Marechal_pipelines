@@ -161,3 +161,9 @@ cython_debug/
 
 example/POLK_Ubiquitin
 example/RFWD3.2_PCNA.3
+
+*.sif
+*.old
+*.bak
+.idea/
+
