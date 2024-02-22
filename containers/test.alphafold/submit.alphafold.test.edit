@@ -15,6 +15,17 @@ export IN=/home/jflucier/projects/def-marechal/programs/Marechal_pipelines/conta
 export OUT=/home/jflucier/projects/def-marechal/programs/Marechal_pipelines/containers/test_alphafold
 export DB=/cvmfs/bio.data.computecanada.ca/content/databases/Core/alphafold2_dbs/2024_01
 
-
+#-H /home/jflucier \
+singularity exec \
+-e alphafold_v2.3.2.sif \
+python /alphafold/run_alphafold.py \
+--fasta_paths=${IN} \
+--output_dir=${OUT} \
+--data_dir=${DB} \
+--db_preset=full_dbs \
+--model_preset=multimer \
+--models_to_relax=all --num_multimer_predictions_per_model 3 \
+--max_template_date=2099-12-31 \
+--use_gpu_relax=True
 
 
