@@ -1,8 +1,8 @@
 #!/bin/bash
 
 #SBATCH --job-name=DTX1_DTX2
-#SBATCH -D /home/jflucier/projects/def-marechal/programs/Marechal_pipelines/containers/test_alphafold
-#SBATCH -o /home/jflucier/projects/def-marechal/programs/Marechal_pipelines/containers/test_alphafold/slurm-%A_%a.out
+#SBATCH -D /home/jflucier/projects/def-marechal/programs/Marechal_pipelines/containers/test.alphafold
+#SBATCH -o /home/jflucier/projects/def-marechal/programs/Marechal_pipelines/containers/test.alphafold/slurm-%A_%a.out
 #SBATCH --account=def-marechal
 #SBATCH --time=24:00:00
 #SBATCH --cpus-per-task=8
@@ -11,8 +11,8 @@
 
 ml apptainer
 
-export IN=/home/jflucier/projects/def-marechal/programs/Marechal_pipelines/containers/test_alphafold/DTX1_DTX2.fa
-export OUT=/home/jflucier/projects/def-marechal/programs/Marechal_pipelines/containers/test_alphafold
+export IN=/home/jflucier/projects/def-marechal/programs/Marechal_pipelines/containers/test.alphafold/DTX1_DTX2.fa
+export OUT=/home/jflucier/projects/def-marechal/programs/Marechal_pipelines/containers/test.alphafold
 export DB=/cvmfs/bio.data.computecanada.ca/content/databases/Core/alphafold2_dbs/2024_01
 
 #-H /home/jflucier \
