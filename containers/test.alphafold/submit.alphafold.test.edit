@@ -11,14 +11,15 @@
 
 ml apptainer
 
-export IN=/lustre06/project/6003342/programs/Marechal_pipelines/containers/test.alphafold/DTX1_DTX2.fa
-export OUT=/lustre06/project/6003342/programs/Marechal_pipelines/containers/test.alphafold
+export WORK=/lustre06/project/6003342/programs/Marechal_pipelines/containers
+export IN=${WORK}/test.alphafold/DTX1_DTX2.fa
+export OUT=${WORK}/test.alphafold
 export DOWNLOAD_DIR=/cvmfs/bio.data.computecanada.ca/content/databases/Core/alphafold2_dbs/2024_01
-export SIF=/lustre06/project/6003342/programs/Marechal_pipelines/containers/alphafold_v2.3.2.sif
+export SIF=${WORK}/alphafold_v2.3.2.sif
 
 #-H /home/jflucier \
 singularity exec --nv \
--B /lustre06/project/6003342/programs/Marechal_pipelines:/lustre06/project/6003342/programs \
+-B ${WORK}:${WORK} \
 -B /cvmfs/bio.data.computecanada.ca/content/databases/Core/alphafold2_dbs/2024_01:/cvmfs/bio.data.computecanada.ca/content/databases/Core/alphafold2_dbs/2024_01 \
 -e ${SIF} \
 python /alphafold/run_alphafold.py \
