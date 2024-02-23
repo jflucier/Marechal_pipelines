@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=DTX1_DTX2
+#SBATCH --job-name=DTX1_mono
 #SBATCH -D /home/jflucier/projects/def-marechal/programs/Marechal_pipelines/containers/test.alphafold.mono
 #SBATCH -o /home/jflucier/projects/def-marechal/programs/Marechal_pipelines/containers/test.alphafold.mono/slurm-%A_%a.out
 #SBATCH --account=def-marechal
