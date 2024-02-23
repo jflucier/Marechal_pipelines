@@ -34,6 +34,7 @@ python /alphafold/run_alphafold.py \
 --uniprot_database_path=${DOWNLOAD_DIR}/uniprot/uniprot.fasta \
 --uniref30_database_path=${DOWNLOAD_DIR}/uniref30/UniRef30_2021_03 \
 --uniref90_database_path=${DOWNLOAD_DIR}/uniref90/uniref90.fasta \
+--pdb70_database_path=${DOWNLOAD_DIR}/pdb70/pdb70 \
 --db_preset=full_dbs \
 --model_preset=monomer \
 --models_to_relax=all \
