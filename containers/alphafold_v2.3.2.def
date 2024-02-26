@@ -11,12 +11,13 @@ Stage: build
     export LD_LIBRARY_PATH="/conda/lib:$LD_LIBRARY_PATH"
 %post
     export DEBIAN_FRONTEND=noninteractive
+    export CUDA_VERSION="11.7.1"
     mv /var/lib/dpkg/info/libc-bin.* /tmp/
     apt update
     apt-get update
     apt install -y libc-bin vim wget
     echo '###### libc-bin installed ######'
-    apt-get install --no-install-recommends -y build-essential cmake git hmmer kalign aria2 tzdata hhsuite
+    apt-get install --no-install-recommends -y build-essential cmake git hmmer kalign aria2 tzdata hhsuite nvidia-cuda-toolkit
     echo '###### build-essential installed ######'
 #    apt install -y cuda-command-line-tools-11-1
     echo '###### cuda installed #####'
