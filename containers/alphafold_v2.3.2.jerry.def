@@ -17,7 +17,7 @@ Stage: build
     echo '###### libc-bin installed ######'
     apt-get install --no-install-recommends -y build-essential cmake git hmmer kalign aria2 tzdata
     echo '###### build-essential installed ######'
-    apt install -y cuda-command-line-tools-11-1
+    apt install -y cuda-command-line-tools
     echo '###### cuda installed #####'
     unset DEBIAN_FRONTEND
     rm -rf /var/lib/apt/lists/*
