@@ -78,7 +78,11 @@ Stage: build
     pip3 install --upgrade pip --no-cache-dir
     #conda install numpy
     pip3 install -r /alphafold/requirements.txt --no-cache-dir
-    pip3 install --upgrade --no-cache-dir jax==0.3.25 jaxlib==0.3.25+cuda11.cudnn805 -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
+
+    #pip3 install --upgrade --no-cache-dir jax==0.3.25 jaxlib==0.3.25+cuda11.cudnn805 -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
+    pip3 install --upgrade --no-cache-dir jax==0.3.25 jaxlib -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
+    #pip3 install --upgrade --no-cache-dir jax==0.4.14 jaxlib==0.4.14+cuda11.cudnn86 -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
+
     wget -q -P /alphafold/alphafold/common/ https://git.scicore.unibas.ch/schwede/openstructure/-/raw/7102c63615b64735c4941278d92b554ec94415f8/modules/mol/alg/src/stereo_chemical_props.txt
 #    chmod u+s /sbin/ldconfig.real
     chmod o+rx -R /alphafold

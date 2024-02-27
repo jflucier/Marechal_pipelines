@@ -1,3 +1,5 @@
+# singularity build --force --fakeroot alphafold_v2.3.2.jerry.sif alphafold_v2.3.2.jerry.def
+
 Bootstrap: docker
 From: nvidia/cuda:11.1.1-cudnn8-runtime-ubuntu18.04
 Stage: build
