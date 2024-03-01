@@ -1,8 +1,8 @@
 #!/bin/bash
 
 #SBATCH --job-name=DTX1_mono
-#SBATCH -D /home/jflucier/projects/def-marechal/programs/Marechal_pipelines/venv/test.alphafold.mono
-#SBATCH -o /home/jflucier/projects/def-marechal/programs/Marechal_pipelines/venv/test.alphafold.mono/slurm-%A_%a.out
+#SBATCH -D /home/jflucier/projects/def-marechal/programs/Marechal_pipelines/environment/test.alphafold.mono
+#SBATCH -o /home/jflucier/projects/def-marechal/programs/Marechal_pipelines/environment/test.alphafold.mono/slurm-%A_%a.out
 #SBATCH --account=def-marechal
 #SBATCH --time=6:00:00
 #SBATCH --cpus-per-task=32
@@ -14,12 +14,12 @@ module load gcc/9.3.0 cuda/11.4 openmpi/4.0.3 openmm/8.0.0 mmseqs2/14-7e284 hh-s
 
 source /home/jflucier/projects/def-marechal/programs/colabfold_env/bin/activate
 
-export WORK=/lustre06/project/6003342/programs/Marechal_pipelines/venv
+export WORK=/lustre06/project/6003342/programs/Marechal_pipelines/environment
 export IN=${WORK}/test.alphafold.mono/DTX1.fa
 export OUT=${WORK}/test.alphafold.mono/colabfold.af2.3.1.mono
 export DOWNLOAD_DIR=/project/def-marechal/programs/colabfold_db
 
-echo "running colabfold on /home/jflucier/projects/def-marechal/programs/Marechal_pipelines/venv/test.alphafold.mono/DTX1.fa"
+echo "running colabfold on /home/jflucier/projects/def-marechal/programs/Marechal_pipelines/environment/test.alphafold.mono/DTX1.fa"
 colabfold_search \
 --threads 32 --use-env 1 --db-load-mode 0 \
 --mmseqs mmseqs \

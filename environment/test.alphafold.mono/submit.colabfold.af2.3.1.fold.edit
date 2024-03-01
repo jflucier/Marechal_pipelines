@@ -1,8 +1,8 @@
 #!/bin/bash
 
 #SBATCH --job-name=DTX1_mono
-#SBATCH -D /home/jflucier/projects/def-marechal/programs/Marechal_pipelines/venv/test.alphafold.mono
-#SBATCH -o /home/jflucier/projects/def-marechal/programs/Marechal_pipelines/venv/test.alphafold.mono/slurm-%A_%a.out
+#SBATCH -D /home/jflucier/projects/def-marechal/programs/Marechal_pipelines//test.alphafold.mono/test.alphafold.mono
+#SBATCH -o /home/jflucier/projects/def-marechal/programs/Marechal_pipelines//test.alphafold.mono/test.alphafold.mono/slurm-%A_%a.out
 #SBATCH --account=def-marechal
 #SBATCH --time=6:00:00
 #SBATCH --cpus-per-task=8
@@ -20,12 +20,12 @@ export XLA_PYTHON_CLIENT_MEM_FRACTION="4.0"
 export XLA_PYTHON_CLIENT_ALLOCATOR="platform"
 export TF_FORCE_GPU_ALLOW_GROWTH="true"
 
-export WORK=/lustre06/project/6003342/programs/Marechal_pipelines/venv
+export WORK=/lustre06/project/6003342/programs/Marechal_pipelines//test.alphafold.mono
 export IN=${WORK}/test.alphafold.mono/msas/0.a3m
 export OUT=${WORK}/test.alphafold.mono/colabfold.af2.3.1.mono
 export DOWNLOAD_DIR=/project/def-marechal/programs/colabfold_db
 
-echo "running colabfold on /home/jflucier/projects/def-marechal/programs/Marechal_pipelines/venv/test.alphafold.mono/DTX1.fa"
+echo "running fold on /home/jflucier/projects/def-marechal/programs/Marechal_pipelines//test.alphafold.mono/test.alphafold.mono/DTX1.fa"
 colabfold_batch \
 --threads 8 --use-env 1 \
 --use-gpu-relax --amber --num-relax 3 \
