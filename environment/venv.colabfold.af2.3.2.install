@@ -1,0 +1,10 @@
+### install and test colabfold (alphafold 2.3.2)
+mkdir /home/jflucier/projects/def-marechal/programs
+cd /home/jflucier/projects/def-marechal/programs
+module load gcc/9.3.0 openmpi/4.0.3 cuda/11.4 cudnn/8.2.0 kalign/2.03 hmmer/3.2.1 openmm-alphafold/7.5.1 hh-suite/3.3.0 python/3.8 mmseqs2/14-7e284
+virtualenv --no-download /home/jflucier/projects/def-marechal/programs/colabfold_env2
+source /home/jflucier/projects/def-marechal/programs/colabfold_env2/bin/activate
+pip install --no-index --upgrade pip
+pip install --no-index alphafold==2.3.2
+pip install --no-deps alphafold-colabfold==v2.3.5
+pip install --no-deps "colabfold[alphafold]@git+https://github.com/sokrypton/ColabFold@v1.5.2" appdirs==1.4.4 py3Dmol==2.0.4 tqdm==4.66.1
