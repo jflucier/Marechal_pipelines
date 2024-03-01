@@ -10,9 +10,13 @@
 
 set -ex
 
+## uncomment one of these env
+#ENV=/home/jflucier/projects/def-marechal/programs/colabfold_af2.3.1_env/bin/activate
+#ENV=/home/jflucier/projects/def-marechal/programs/colabfold_af2.3.2_env/bin/activate
+
 module load gcc/9.3.0 cuda/11.4 openmpi/4.0.3 openmm/8.0.0 mmseqs2/14-7e284 hh-suite/3.3.0 hmmer/3.2.1
 
-source /home/jflucier/projects/def-marechal/programs/colabfold_env/bin/activate
+source ${ENV}
 
 export WORK=/lustre06/project/6003342/programs/Marechal_pipelines/environment
 export IN=${WORK}/test.colabfold.mono/DTX1_DTX2.fa
