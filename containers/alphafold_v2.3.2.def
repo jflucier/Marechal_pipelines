@@ -1,31 +1,35 @@
 ## build new image using this command:
 ## singularity build --force --fakeroot alphafold_v2.3.2.sif alphafold_v2.3.2.def
+# singularity build --force --fakeroot alphafold_v2.3.2.jerry.sif alphafold_v2.3.2.jerry.def
+
 Bootstrap: docker
-#nvidia/cuda:12.3.1-runtime-ubuntu22.04
 From: nvidia/cuda:11.1.1-cudnn8-runtime-ubuntu20.04
 Stage: build
 %environment
-    export CUDA=11.7.1
+    export CUDA=11.1.1
     export LC_ALL=C
-    export PATH="/conda/bin:/alphafold:$PATH"
-    export LD_LIBRARY_PATH="/conda/lib:$LD_LIBRARY_PATH"
+    export PATH="/opt/conda/bin:$PATH"
+    export LD_LIBRARY_PATH="/opt/conda/lib:$LD_LIBRARY_PATH"
 %post
     export DEBIAN_FRONTEND=noninteractive
-    export CUDA_VERSION="11.7.1"
     mv /var/lib/dpkg/info/libc-bin.* /tmp/
     apt update
     apt-get update
     apt install -y libc-bin vim wget
     echo '###### libc-bin installed ######'
-    apt-get install --no-install-recommends -y build-essential cmake git hmmer kalign aria2 tzdata 
+    apt-get install --no-install-recommends -y build-essential cmake git hmmer kalign aria2 tzdata
     echo '###### build-essential installed ######'
-#    apt install -y cuda-command-line-tools-11-1
+#    apt install -y cuda-command-line-tools
     echo '###### cuda installed #####'
     unset DEBIAN_FRONTEND
     rm -rf /var/lib/apt/lists/*
     apt-get autoremove -y
     apt-get clean
-
+    if [ ! -d "/opt"]; then
+       mkdir /opt
+    fi
+    cd /opt
+    git clone https://github.com/google-deepmind/alphafold
     cd /tmp
     if [-d "hh-suite"]; then
         echo 'hh-suite exists'
@@ -42,50 +46,116 @@ Stage: build
     ln -s /opt/hhsuite/bin/* /usr/bin
     cd /opt
     rm -rf /tmp/hh-suite
-
-    cd /
-    wget -O alphafold_v2.3.2.tar.gz https://github.com/google-deepmind/alphafold/archive/refs/tags/v2.3.2.tar.gz
-    tar -xvzf alphafold_v2.3.2.tar.gz
-#    git clone https://github.com/google-deepmind/alphafold
-    wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
-    bash /Miniconda3-latest-Linux-x86_64.sh -b -p /conda
-    rm /Miniconda3-latest-Linux-x86_64.sh
-    export PATH="/conda/bin:$PATH"
-    export LD_LIBRARY_PATH="/conda/lib:$LD_LIBRARY_PATH"
-
-    echo ". /conda/etc/profile.d/conda.sh" >> $SINGULARITY_ENVIRONMENT
-    echo "conda activate" >> $SINGULARITY_ENVIRONMENT
-
-    . /conda/etc/profile.d/conda.sh
-
-    conda activate
-#    conda install -y nvidia/label/cuda-11.1.1::cuda-command-line-tools
-#    conda install -qy conda==23.5.2
-#    conda install -y -c conda-forge openmm=7.7.0 cudatoolkit==${CUDA_VERSION} pdbfixer pip python=3.10
-    #conda install -y -c conda-forge openmm cudatoolkit==${CUDA_VERSION} pdbfixer pip python=3.10
-    conda install -y -c conda-forge openmm=7.7.0 cudatoolkit==${CUDA_VERSION} pdbfixer pip python=3.8
+    wget -q -P /tmp https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+    bash /tmp/Miniconda3-latest-Linux-x86_64.sh -b -p /opt/conda
+    rm /tmp/Miniconda3-latest-Linux-x86_64.sh
+    export PATH="/opt/conda/bin:$PATH"
+    export LD_LIBRARY_PATH="/opt/conda/lib:$LD_LIBRARY_PATH"
+    conda install -qy conda==23.5.2
+    conda install -y -c conda-forge openmm=7.7.0 cudatoolkit==${CUDA_VERSION} pdbfixer pip python=3.10
     conda clean --all --force-pkgs-dirs --yes
-    wget -q -P /alphafold-2.3.2/alphafold/common/ https://git.scicore.unibas.ch/schwede/openstructure/-/raw/7102c63615b64735c4941278d92b554ec94415f8/modules/mol/alg/src/stereo_chemical_props.txt
+    wget -q -P /app/alphafold/alphafold/common/ https://git.scicore.unibas.ch/schwede/openstructure/-/raw/7102c63615b64735c4941278d92b554ec94415f8/modules/mol/alg/src/stereo_chemical_props.txt
     pip3 install --upgrade pip --no-cache-dir
-    #conda install numpy
-    #pip3 install -r /alphafold-2.3.2/requirements.txt --no-cache-dir
-    pip3 install absl-py==1.0.0 biopython==1.79 chex==0.0.7 dm-haiku==0.0.9 dm-tree==0.1.6 docker==5.0.0 immutabledict==2.0.0 jax==0.3.25 ml-collections==0.1.0 numpy==1.21.6 pandas==1.3.4 'scipy>=1.7.0' tensorflow-cpu==2.11.0
+    pip3 install -r /opt/alphafold/requirements.txt --no-cache-dir
     pip3 install --upgrade --no-cache-dir jax==0.3.25 jaxlib==0.3.25+cuda11.cudnn805 -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
-#    pip3 install --upgrade --no-cache-dir jax==0.3.25 jaxlib -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
-#    pip3 install --upgrade --no-cache-dir jax==0.4.14 jaxlib==0.4.14+cuda11.cudnn86 -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
-#    pip3 install --upgrade --no-cache-dir jax==0.4.7 jaxlib==0.4.7+cuda11.cudnn82 -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
-    pip install -U numpy
-
-    wget -q -P /alphafold-2.3.2//alphafold/common/ https://git.scicore.unibas.ch/schwede/openstructure/-/raw/7102c63615b64735c4941278d92b554ec94415f8/modules/mol/alg/src/stereo_chemical_props.txt
-#    chmod u+s /sbin/ldconfig.real
-    chmod o+rx -R /alphafold-2.3.2/
-    conda deactivate
-
+    wget -q -P /opt/alphafold/alphafold/common/ https://git.scicore.unibas.ch/schwede/openstructure/-/raw/7102c63615b64735c4941278d92b554ec94415f8/modules/mol/alg/src/stereo_chemical_props.txt
+    chmod u+s /sbin/ldconfig.real
+    chmod o+rx -R /opt
 %runscript
 %startscript
 %test
 %labels
-    AlphaFold v2.3.2
+    AlphaFold
     Date 2024-01-24
 %help
-    This is a container for AlphaFold 2.3.2 program
+    This is a container for AlphaFold program
+
+#Bootstrap: docker
+##nvidia/cuda:12.3.1-runtime-ubuntu22.04
+#From: nvidia/cuda:11.1.1-cudnn8-runtime-ubuntu20.04
+#Stage: build
+#%environment
+#    export CUDA=11.7.1
+#    export LC_ALL=C
+#    export PATH="/conda/bin:/alphafold:$PATH"
+#    export LD_LIBRARY_PATH="/conda/lib:$LD_LIBRARY_PATH"
+#%post
+#    export DEBIAN_FRONTEND=noninteractive
+#    export CUDA_VERSION="11.7.1"
+#    mv /var/lib/dpkg/info/libc-bin.* /tmp/
+#    apt update
+#    apt-get update
+#    apt install -y libc-bin vim wget
+#    echo '###### libc-bin installed ######'
+#    apt-get install --no-install-recommends -y build-essential cmake git hmmer kalign aria2 tzdata
+#    echo '###### build-essential installed ######'
+##    apt install -y cuda-command-line-tools-11-1
+#    echo '###### cuda installed #####'
+#    unset DEBIAN_FRONTEND
+#    rm -rf /var/lib/apt/lists/*
+#    apt-get autoremove -y
+#    apt-get clean
+#
+#    cd /tmp
+#    if [-d "hh-suite"]; then
+#        echo 'hh-suite exists'
+#        rm -rf hh-suite
+#    fi
+#    if [-f "hh-suite"]; then
+#        rm -rf hh-suite
+#    fi
+#    git clone --branch v3.3.0 https://github.com/soedinglab/hh-suite.git
+#    mkdir /tmp/hh-suite/build
+#    cd /tmp/hh-suite/build
+#    cmake -DCMAKE_INSTALL_PREFIX=/opt/hhsuite ..
+#    make -j 4 && make install
+#    ln -s /opt/hhsuite/bin/* /usr/bin
+#    cd /opt
+#    rm -rf /tmp/hh-suite
+#
+#    cd /
+#    wget -O alphafold_v2.3.2.tar.gz https://github.com/google-deepmind/alphafold/archive/refs/tags/v2.3.2.tar.gz
+#    tar -xvzf alphafold_v2.3.2.tar.gz
+##    git clone https://github.com/google-deepmind/alphafold
+#    wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+#    bash /Miniconda3-latest-Linux-x86_64.sh -b -p /conda
+#    rm /Miniconda3-latest-Linux-x86_64.sh
+#    export PATH="/conda/bin:$PATH"
+#    export LD_LIBRARY_PATH="/conda/lib:$LD_LIBRARY_PATH"
+#
+#    echo ". /conda/etc/profile.d/conda.sh" >> $SINGULARITY_ENVIRONMENT
+#    echo "conda activate" >> $SINGULARITY_ENVIRONMENT
+#
+#    . /conda/etc/profile.d/conda.sh
+#
+#    conda activate
+##    conda install -y nvidia/label/cuda-11.1.1::cuda-command-line-tools
+##    conda install -qy conda==23.5.2
+##    conda install -y -c conda-forge openmm=7.7.0 cudatoolkit==${CUDA_VERSION} pdbfixer pip python=3.10
+#    #conda install -y -c conda-forge openmm cudatoolkit==${CUDA_VERSION} pdbfixer pip python=3.10
+#    conda install -y -c conda-forge openmm=7.7.0 cudatoolkit==${CUDA_VERSION} pdbfixer pip python=3.8
+#    conda clean --all --force-pkgs-dirs --yes
+#    wget -q -P /alphafold-2.3.2/alphafold/common/ https://git.scicore.unibas.ch/schwede/openstructure/-/raw/7102c63615b64735c4941278d92b554ec94415f8/modules/mol/alg/src/stereo_chemical_props.txt
+#    pip3 install --upgrade pip --no-cache-dir
+#    #conda install numpy
+#    #pip3 install -r /alphafold-2.3.2/requirements.txt --no-cache-dir
+#    pip3 install absl-py==1.0.0 biopython==1.79 chex==0.0.7 dm-haiku==0.0.9 dm-tree==0.1.6 docker==5.0.0 immutabledict==2.0.0 jax==0.3.25 ml-collections==0.1.0 numpy==1.21.6 pandas==1.3.4 'scipy>=1.7.0' tensorflow-cpu==2.11.0
+#    pip3 install --upgrade --no-cache-dir jax==0.3.25 jaxlib==0.3.25+cuda11.cudnn805 -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
+##    pip3 install --upgrade --no-cache-dir jax==0.3.25 jaxlib -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
+##    pip3 install --upgrade --no-cache-dir jax==0.4.14 jaxlib==0.4.14+cuda11.cudnn86 -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
+##    pip3 install --upgrade --no-cache-dir jax==0.4.7 jaxlib==0.4.7+cuda11.cudnn82 -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
+#    pip install -U numpy
+#
+#    wget -q -P /alphafold-2.3.2//alphafold/common/ https://git.scicore.unibas.ch/schwede/openstructure/-/raw/7102c63615b64735c4941278d92b554ec94415f8/modules/mol/alg/src/stereo_chemical_props.txt
+##    chmod u+s /sbin/ldconfig.real
+#    chmod o+rx -R /alphafold-2.3.2/
+#    conda deactivate
+#
+#%runscript
+#%startscript
+#%test
+#%labels
+#    AlphaFold v2.3.2
+#    Date 2024-01-24
+#%help
+#    This is a container for AlphaFold 2.3.2 program
