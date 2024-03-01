@@ -1,0 +1,33 @@
+#!/bin/bash
+
+#SBATCH --job-name=DTX1_mono
+#SBATCH -D /home/jflucier/projects/def-marechal/programs/Marechal_pipelines/environment/test.colabfold.mono
+#SBATCH -o /home/jflucier/projects/def-marechal/programs/Marechal_pipelines/environment/test.colabfold.mono/slurm-%A_%a.out
+#SBATCH --account=def-marechal
+#SBATCH --time=6:00:00
+#SBATCH --cpus-per-task=32
+#SBATCH --mem=40G
+
+set -ex
+
+module load gcc/9.3.0 cuda/11.4 openmpi/4.0.3 openmm/8.0.0 mmseqs2/14-7e284 hh-suite/3.3.0 hmmer/3.2.1
+
+source /home/jflucier/projects/def-marechal/programs/colabfold_env/bin/activate
+
+export WORK=/lustre06/project/6003342/programs/Marechal_pipelines/environment
+export IN=${WORK}/test.colabfold.mono/DTX1.fa
+export OUT=${WORK}/test.colabfold.mono/colabfold.af2.3.1.mono
+export DOWNLOAD_DIR=/project/def-marechal/programs/colabfold_db
+
+echo "running colabfold on /home/jflucier/projects/def-marechal/programs/Marechal_pipelines/environment/test.colabfold.mono/DTX1.fa"
+colabfold_search \
+--threads 32 --use-env 1 --db-load-mode 0 \
+--mmseqs mmseqs \
+--db1 ${DOWNLOAD_DIR}/uniref30_2302_db \
+--db2 ${DOWNLOAD_DIR}/pdb100_230517 \
+--db3 ${DOWNLOAD_DIR}/colabfold_envdb_202108_db \
+${IN} ${DOWNLOAD_DIR} ${OUT}
+
+echo "done!"
+
+
