@@ -25,8 +25,8 @@ export XLA_PYTHON_CLIENT_ALLOCATOR="platform"
 export TF_FORCE_GPU_ALLOW_GROWTH="true"
 
 export WORK=/lustre06/project/6003342/programs/Marechal_pipelines/environment/test.colabfold.mono
-export IN=${WORK}/test.colabfold.mono/msas/0.a3m
-export OUT=${WORK}/test.colabfold.mono/colabfold.af2.3.1.mono
+export IN=${WORK}/colabfold.af2.3.1.mono/0.a3m
+export OUT=${WORK}/colabfold.af2.3.1.mono
 export DOWNLOAD_DIR=/project/def-marechal/programs/colabfold_db
 
 echo "running fold on /lustre06/project/6003342/programs/Marechal_pipelines/environment/test.colabfold.mono/DTX1.fa"
@@ -37,7 +37,7 @@ colabfold_batch \
 --num-recycle 30 --recycle-early-stop-tolerance 0.5 \
 --model-type auto \
 --data $DOWNLOAD_DIR \
-${IN}/msas3/0.a3m \
+${IN} \
 ${OUT}
 
 echo "done!"
