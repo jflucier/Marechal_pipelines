@@ -4,8 +4,8 @@
 #SBATCH -D /home/jflucier/projects/def-marechal/programs/Marechal_pipelines/environment/test.colabfold.mono
 #SBATCH -o /home/jflucier/projects/def-marechal/programs/Marechal_pipelines/environment/test.colabfold.mono/slurm-%A_%a.out
 #SBATCH --account=def-marechal
-#SBATCH --time=6:00:00
-#SBATCH --cpus-per-task=32
+#SBATCH --time=2:00:00
+#SBATCH --cpus-per-task=8
 #SBATCH --mem=40G
 
 set -ex
