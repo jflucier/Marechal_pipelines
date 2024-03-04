@@ -6,5 +6,5 @@ virtualenv --no-download /home/jflucier/projects/def-marechal/programs/colabfold
 source /home/jflucier/projects/def-marechal/programs/colabfold_af2.3.2_env/bin/activate
 pip install --no-index --upgrade pip
 pip install --no-index alphafold==2.3.2
-pip install --no-deps alphafold-colabfold==v2.3.5
+pip install --no-deps alphafold-colabfold==v2.3.6
 pip install --no-deps "colabfold[alphafold]@git+https://github.com/sokrypton/ColabFold@v1.5.2" appdirs==1.4.4 py3Dmol==2.0.4 tqdm==4.66.1

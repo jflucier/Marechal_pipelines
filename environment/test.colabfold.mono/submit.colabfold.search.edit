@@ -25,7 +25,7 @@ export DOWNLOAD_DIR=/project/def-marechal/programs/colabfold_db
 
 echo "running colabfold on /home/jflucier/projects/def-marechal/programs/Marechal_pipelines/environment/test.colabfold.mono/DTX1.fa"
 colabfold_search \
---threads 32 --use-env 1 --db-load-mode 0 \
+--threads 8 --use-env 1 --db-load-mode 0 \
 --mmseqs mmseqs \
 --db1 ${DOWNLOAD_DIR}/uniref30_2302_db \
 --db2 ${DOWNLOAD_DIR}/pdb100_230517 \
