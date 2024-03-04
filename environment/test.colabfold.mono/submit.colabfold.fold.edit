@@ -31,7 +31,6 @@ export DOWNLOAD_DIR=/project/def-marechal/programs/colabfold_db
 
 echo "running fold on /lustre06/project/6003342/programs/Marechal_pipelines/environment/test.colabfold.mono/DTX1.fa"
 colabfold_batch \
---threads 8 --use-env 1 \
 --use-gpu-relax --amber --num-relax 3 \
 --num-models 3 \
 --num-recycle 30 --recycle-early-stop-tolerance 0.5 \
