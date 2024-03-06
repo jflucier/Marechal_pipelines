@@ -1,10 +1,10 @@
 #!/bin/bash
 
-#SBATCH --job-name=DTX1_mono
+#SBATCH --job-name=fold_mono
 #SBATCH -D /home/jflucier/projects/def-marechal/programs/Marechal_pipelines/environment/test.colabfold.mono
 #SBATCH -o /home/jflucier/projects/def-marechal/programs/Marechal_pipelines/environment/test.colabfold.mono/slurm-%A_%a.out
 #SBATCH --account=def-marechal
-#SBATCH --time=1:00:00
+#SBATCH --time=2:00:00
 #SBATCH --cpus-per-task=8
 #SBATCH --gres=gpu:1
 #SBATCH --mem=40G
@@ -12,8 +12,10 @@
 set -ex
 
 ## uncomment one of these env
-#ENV=/home/jflucier/projects/def-marechal/programs/colabfold_af2.3.1_env/bin/activate
-#ENV=/home/jflucier/projects/def-marechal/programs/colabfold_af2.3.2_env/bin/activate
+#AF_VERSION=2.3.1
+#AF_VERSION=2.3.2
+
+ENV=/home/jflucier/projects/def-marechal/programs/colabfold_af${AF_VERSION}_env/bin/activate
 
 module load gcc/9.3.0 cuda/11.4 openmpi/4.0.3 openmm/8.0.0 mmseqs2/14-7e284 hh-suite/3.3.0 hmmer/3.2.1
 
@@ -25,8 +27,8 @@ export XLA_PYTHON_CLIENT_ALLOCATOR="platform"
 export TF_FORCE_GPU_ALLOW_GROWTH="true"
 
 export WORK=/lustre06/project/6003342/programs/Marechal_pipelines/environment/test.colabfold.mono
-export IN=${WORK}/colabfold.af2.3.1.mono/0.a3m
-export OUT=${WORK}/colabfold.af2.3.1.mono
+export IN=${WORK}/colabfold.af${AF_VERSION}.mono/0.a3m
+export OUT=${WORK}/colabfold.af${AF_VERSION}.mono
 export DOWNLOAD_DIR=/project/def-marechal/programs/colabfold_db
 
 echo "running fold on /lustre06/project/6003342/programs/Marechal_pipelines/environment/test.colabfold.mono/DTX1.fa"

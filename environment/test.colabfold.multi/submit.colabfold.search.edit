@@ -1,31 +1,33 @@
 #!/bin/bash
 
-#SBATCH --job-name=DTX1_DTX2
+#SBATCH --job-name=search_multi
 #SBATCH -D /home/jflucier/projects/def-marechal/programs/Marechal_pipelines/environment/test.colabfold.multi
 #SBATCH -o /home/jflucier/projects/def-marechal/programs/Marechal_pipelines/environment/test.colabfold.multi/slurm-%A_%a.out
 #SBATCH --account=def-marechal
-#SBATCH --time=6:00:00
-#SBATCH --cpus-per-task=32
+#SBATCH --time=4:00:00
+#SBATCH --cpus-per-task=8
 #SBATCH --mem=40G
 
 set -ex
 
 ## uncomment one of these env
-#ENV=/home/jflucier/projects/def-marechal/programs/colabfold_af2.3.1_env/bin/activate
-#ENV=/home/jflucier/projects/def-marechal/programs/colabfold_af2.3.2_env/bin/activate
+#AF_VERSION=2.3.1
+#AF_VERSION=2.3.2
+
+ENV=/home/jflucier/projects/def-marechal/programs/colabfold_af${AF_VERSION}_env/bin/activate
 
 module load gcc/9.3.0 cuda/11.4 openmpi/4.0.3 openmm/8.0.0 mmseqs2/14-7e284 hh-suite/3.3.0 hmmer/3.2.1
 
 source ${ENV}
 
 export WORK=/lustre06/project/6003342/programs/Marechal_pipelines/environment
-export IN=${WORK}/test.colabfold.mono/DTX1_DTX2.fa
-export OUT=${WORK}/test.colabfold.mono/colabfold.af2.3.1.multi
+export IN=${WORK}/test.colabfold.multi/DTX1_DTX2.fa
+export OUT=${WORK}/test.colabfold.multi/colabfold.af${AF_VERSION}.multi
 export DOWNLOAD_DIR=/project/def-marechal/programs/colabfold_db
 
-echo "running colabfold on /home/jflucier/projects/def-marechal/programs/Marechal_pipelines/environment/test.colabfold.multi/DTX1_DTX2.fa"
+echo "running colabfold on /home/jflucier/projects/def-marechal/programs/Marechal_pipelines/environment/test.colabfold.multi/DTX1.fa"
 colabfold_search \
---threads 32 --use-env 1 --db-load-mode 0 \
+--threads 8 --use-env 1 --db-load-mode 0 \
 --mmseqs mmseqs \
 --db1 ${DOWNLOAD_DIR}/uniref30_2302_db \
 --db2 ${DOWNLOAD_DIR}/pdb100_230517 \
