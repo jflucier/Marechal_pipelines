@@ -180,7 +180,7 @@ if __name__ == '__main__':
         "--database",
         help="your colabfold database path",
         type=str,
-        default="/home/jflucier/projects/def-marechal/colabfold_db"
+        default="/home/jflucier/projects/def-marechal/programs/colabfold_db"
     )
 
     args = argParser.parse_args()
