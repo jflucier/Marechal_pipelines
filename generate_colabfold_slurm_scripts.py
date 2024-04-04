@@ -6,12 +6,18 @@ import pandas as pd
 import requests
 from string import Template
 
-def setup_multimer_fold(foldsheet,output_dir,account,db):
+AF_VERSION = "2.3.2"
+ENV = f"/home/jflucier/projects/def-marechal/programs/colabfold_af${AF_VERSION}_env/bin/activate"
+
+def setup_fold(foldsheet, output_dir, account, db):
     folds = pd.read_csv(foldsheet, sep='\t', index_col="multimer_name")
 
     # cleanup submission script if exists
-    if os.path.exists(os.path.join(output_dir, "submit_all_multimer_jobs.sh")):
-        os.remove(os.path.join(output_dir, "submit_all_multimer_jobs.sh"))
+    if os.path.exists(os.path.join(output_dir, "01_submit_all_colab_search_jobs.sh")):
+        os.remove(os.path.join(output_dir, "01_submit_all_colab_search_jobs.sh"))
+
+    if os.path.exists(os.path.join(output_dir, "02_submit_all_colab_fold_jobs.sh")):
+        os.remove(os.path.join(output_dir, "02_submit_all_colab_fold_jobs.sh"))
 
     for index, row in folds.iterrows():
         # Path
@@ -32,30 +38,60 @@ def setup_multimer_fold(foldsheet,output_dir,account,db):
         generate_pdb(workdir, row)
 
         # gen submit script:
-        script_path = os.path.dirname(__file__)
-        tmpl_data = {
-            'job_name': f"{index}",
-            'colabfold_db': db,
-            'outdir': f"{workdir}",
-            'fasta': f"{fasta_out}",
-            'out_analysis': f"{workdir}_analysis",
-            'script_path': f"{script_path}",
-            'account': account
-        }
+        generate_search_script(output_dir, index, db, workdir, fasta_out, account)
+        generate_fold_script(output_dir, index, db, workdir, account)
 
-        print(f"Generating submission script: {workdir}/submit_colabfold_multimer.{index}.sh\n")
-        with open(os.path.join(script_path, "submit_colabfold_multimer.tmpl"), 'r') as f:
-            src = Template(f.read())
-            result = src.substitute(tmpl_data)
-            with open(os.path.join(workdir, f"submit_colabfold_multimer.{index}.sh"), 'w') as out:
-                out.write(result)
+    print(f"\nPlease submit jobs in 2 steps:")
+    print(f"Step 1: sh {output_dir}/01_submit_all_colab_search_jobs.sh")
+    print(f"Step 2: sh {output_dir}/02_submit_all_colab_fold_jobs.sh")
+    print(f"\nMake sure Step 1 completes successfully before running Step2.")
 
-        with open(os.path.join(output_dir, "submit_all_multimer_jobs.sh"), 'a') as o:
-            o.write(f"sbatch {workdir}/submit_colabfold_multimer.{index}.sh\n")
+def generate_fold_script(output_dir, index, db, workdir, account):
+    script_path = os.path.dirname(__file__)
+    fold_tmpl_data = {
+        'ENV': ENV,
+        'job_name': f"{index}",
+        'colabfold_db': db,
+        'outdir': f"{workdir}",
+        'align_a3m_file': f"{workdir}/0.a3m",
+        'script_path': f"{script_path}",
+        'account': account
+    }
 
-    print(f"\nTo submit, please run: sh {output_dir}/submit_all_multimer_jobs.sh\n")
+    print(f"Generating colab fold submission script: {workdir}/submit_colab_fold.{index}.sh\n")
+    with open(os.path.join(script_path, "submit_colabfold.fold.tmpl"), 'r') as f:
+        src = Template(f.read())
+        result = src.substitute(fold_tmpl_data)
+        with open(os.path.join(workdir, f"submit_colab_fold.{index}.sh"), 'w') as out:
+            out.write(result)
 
-def generate_pdb(wd,row):
+    with open(os.path.join(output_dir, "02_submit_all_colab_fold_jobs.sh"), 'a') as o:
+        o.write(f"sbatch {workdir}/submit_colab_fold.{index}.sh\n")
+
+
+def generate_search_script(output_dir, index, db, workdir, fasta_out, account):
+    script_path = os.path.dirname(__file__)
+    search_tmpl_data = {
+        'ENV': ENV,
+        'job_name': f"{index}",
+        'colabfold_db': db,
+        'outdir': f"{workdir}",
+        'fasta': f"{fasta_out}",
+        'account': account
+    }
+
+    print(f"Generating colab search submission script: {workdir}/submit_colab_search.{index}.sh\n")
+    with open(os.path.join(script_path, "submit_colabfold.search.tmpl"), 'r') as f:
+        src = Template(f.read())
+        result = src.substitute(search_tmpl_data)
+        with open(os.path.join(workdir, f"submit_colab_search.{index}.sh"), 'w') as out:
+            out.write(result)
+
+    with open(os.path.join(output_dir, "01_submit_all_colab_search_jobs.sh"), 'a') as o:
+        o.write(f"sbatch {workdir}/submit_colab_search.{index}.sh\n")
+
+
+def generate_pdb(wd, row):
     pdb_dir = os.path.join(wd, "pdb")
     if not os.path.exists(pdb_dir):
         os.makedirs(pdb_dir)
@@ -64,7 +100,7 @@ def generate_pdb(wd,row):
     while f"protein{prot_nbr}_PDB" in row.index:
         if not pd.isna(row[f"protein{prot_nbr}_PDB"]):
             pdb_str = row[f"protein{prot_nbr}_PDB"]
-            pdb_list=pdb_str.split(",")
+            pdb_list = pdb_str.split(",")
             for pdb in pdb_list:
                 # download pdb if pdb id is provided
                 pdb_out = os.path.join(pdb_dir, f"{pdb.lower()}.cif")
@@ -90,7 +126,8 @@ def generate_pdb(wd,row):
 
         prot_nbr = prot_nbr + 1
 
-def generate_fasta(fa_out,row):
+
+def generate_fasta(fa_out, row):
     prot_nbr = 1
     fa_header = ""
     fa_seq = []
@@ -108,6 +145,7 @@ def generate_fasta(fa_out,row):
     with open(fa_out, 'w') as f:
         f.write(f">{fa_header}\n")
         f.write(f"{seq}\n")
+
 
 if __name__ == '__main__':
     argParser = argparse.ArgumentParser()
@@ -147,7 +185,7 @@ if __name__ == '__main__':
 
     args = argParser.parse_args()
 
-    setup_multimer_fold(
+    setup_fold(
         args.foldsheet,
         args.output,
         args.account,

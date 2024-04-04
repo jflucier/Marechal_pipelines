@@ -1,0 +1,128 @@
+
+cd /home/def-marechal/programs
+
+wget -P /home/def-marechal/programs "https://github.com/conda-forge/miniforge/releases/download/23.3.1-1/Miniforge-pypy3-23.3.1-1-Linux-aarch64.sh"
+bash /home/def-marechal/programs/Miniforge-pypy3-23.3.1-1-Linux-aarch64.sh -b -p /home/def-marechal/programs/conda
+
+export PATH=/home/def-marechal/programs/conda/bin:$PATH
+
+git clone https://github.com/aqlaboratory/openfold.git
+cd /home/def-marechal/programs/openfold
+
+#The following packages are incompatible
+#├─ hmmer 3.3.2  does not exist (perhaps a typo or a missing channel);
+#├─ libgcc 7.2**  does not exist (perhaps a typo or a missing channel);
+#└─ pytorch 1.12*  does not exist (perhaps a typo or a missing channel).
+
+mamba create -y -n openfold_env python=3.10
+mamba activate openfold_env
+
+export CMAKE_PREFIX_PATH="/usr/local/cuda-11.8":$CMAKE_PREFIX_PATH
+export CPATH="/usr/local/cuda-11.8/include":$CPATH
+export CPATH="/usr/local/cuda-11.8/extras/CUPTI/include":$CPATH
+export CPATH="/usr/local/cuda-11.8/nvvm/include":$CPATH
+export LIBRARY_PATH="/usr/local/cuda-11.8/lib64":$LIBRARY_PATH
+#export LIBRARY_PATH="/usr/local/cuda-11.8/stubs/lib64":$LIBRARY_PATH
+export LIBRARY_PATH="/usr/local/cuda-11.8/nvvm/lib64":$LIBRARY_PATH
+export PATH="/usr/local/cuda-11.8/bin":$PATH
+export PATH="/usr/local/cuda-11.8/nvvm/bin":$PATH
+export EBROOTCUDACORE="/usr/local/cuda-11.8"
+export EBVERSIONCUDACORE="11.8.0"
+export EBDEVELCUDACORE="/usr/local/cuda-11.8"
+export PATH="/usr/local/cuda-11.8":$PATH
+export CUDA_HOME="/usr/local/cuda-11.8"
+export CUDA_ROOT="/usr/local/cuda-11.8"
+export CUDA_PATH="/usr/local/cuda-11.8"
+
+# cuda setup
+export EBROOTCUDA="/usr/local/cuda-11.8"
+export EBVERSIONCUDA="11.8.0"
+export EBDEVELCUDA="/usr/local/cuda-11.8"
+
+# cudnn setup
+export CMAKE_PREFIX_PATH="/usr/local/cudnn-linux-sbsa-8.9.7.29_cuda11-archive":$CMAKE_PREFIX_PATH
+export CPATH="/usr/local/cudnn-linux-sbsa-8.9.7.29_cuda11-archive/include":$CPATH
+export LIBRARY_PATH="/usr/local/cudnn-linux-sbsa-8.9.7.29_cuda11-archive/lib":$LIBRARY_PATH
+export EBROOTCUDNN="/usr/local/cudnn-linux-sbsa-8.9.7.29_cuda11-archive"
+export EBVERSIONCUDNN="8.9.7"
+export EBDEVELCUDNN="/usr/local/cudnn-linux-sbsa-8.9.7.29_cuda11-archive"
+
+#mamba install -c conda-forge -c bioconda -c pytorch libgcc=7.2
+mamba install -y -c conda-forge  setuptools=59.5.0 pip openmm=7.7 pdbfixer
+pip install torch==1.13.1 torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+git clone --recursive https://github.com/pytorch/pytorch
+cd pytorch
+git checkout v1.13.1
+git submodule sync
+git submodule update --init --recursive --jobs 4
+#export CMAKE_PREFIX_PATH=${CONDA_PREFIX:-"$(dirname $(which conda))/../"}
+export LD_LIBRARY_PATH=/usr/local/cuda-11.8:/usr/local/cuda-11.8/nvvm:/usr/local/cudnn-linux-sbsa-8.9.7.29_cuda11-archive/lib:/usr/local/cuda-11.8/targets/sbsa-linux/lib:/usr/local/cudnn-linux-sbsa-8.9.7.29_cuda11-archive/lib:/usr/local/cudnn-linux-sbsa-8.9.7.29_cuda11-archive/include:/home/def-marechal/programs/nccl_2.16.5-1+cuda11.8_aarch64/include
+export PATH=/usr/local/cuda-11.8/bin:$PATH
+export USE_CUDA=ON
+export CUDNN_LIBRARY_PATH=/usr/local/cudnn-linux-sbsa-8.9.7.29_cuda11-archive/lib
+export CUDNN_INCLUDE_PATH=/usr/local/cudnn-linux-sbsa-8.9.7.29_cuda11-archive/include
+cd third_party/gloo
+# openfold original gloo commit
+# commit 5b143513263133af2b95547e97c07cebeb72bf72 (HEAD)
+git checkout 2565674cd77c79df8ad9e36109a2959b1fd4c213
+cd ../..
+# edit CmakeLists.txt and add
+# from https://github.com/pytorch/pytorch/issues/114054
+set(CUDNN_LIBRARY_PATH /usr/local/cudnn-linux-sbsa-8.9.7.29_cuda11-archive/lib/libcudnn.so.8)
+set(CUDNN_INCLUDE_PATH /usr/local/cudnn-linux-sbsa-8.9.7.29_cuda11-archive/include)
+# commented line 50: set(CMAKE_CXX_STANDARD 14 CACHE STRING "The C++ standard whose features are requested to build this target.")
+set(CMAKE_CXX_STANDARD 17 CACHE STRING "The C++ standard whose features are requested to build this target.")
+set(CMAKE_CXX_STANDARD 17)
+cd /home/def-marechal/programs/pytorch
+python setup.py install
+
+Could NOT find CUDNN (missing: CUDNN_LIBRARY_PATH CUDNN_INCLUDE_PATH)
+
+mamba install -y -c pytorch -c nvidia --force-reinstall pytorch==1.13.* pytorch-cuda=11.8 pytorch-lightning==1.5.10 cudatoolkit==11.8.*
+mamba install -y -c conda-forge biopython==1.79 numpy==1.26.4
+pip install numpy --upgrade
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+
+mamba install -y -c conda-forge pandas==2.0 PyYAML==5.4.1 requests scipy==1.7.* tqdm==4.62.2 typing-extensions==3.10 \
+wandb==0.12.21 modelcif==0.7 awscli ml-collections aria2 git
+
+mamba install -y -c bioconda hhsuite==3.3.0 kalign2==2.04 hmmer==3.4
+# no choice to use hmmer v3.4 for now
+pip install deepspeed==0.12.4
+pip install dm-tree==0.1.7
+
+## doent not compile on arm64
+#wget http://eddylab.org/software/hmmer/hmmer-3.3.2.tar.gz
+#tar -xvf hmmer-3.3.2.tar.gz
+#cd hmmer-3.3.2/
+#./configure --prefix=$PWD
+#make
+#make check                        # optional: automated tests
+#make install
+
+
+
+wget -N --no-check-certificate -P openfold/resources \
+    https://git.scicore.unibas.ch/schwede/openstructure/-/raw/7102c63615b64735c4941278d92b554ec94415f8/modules/mol/alg/src/stereo_chemical_props.txt
+
+# Certain tests need access to this file
+mkdir -p tests/test_data/alphafold/common
+ln -rs openfold/resources/stereo_chemical_props.txt tests/test_data/alphafold/common
+
+# Decompress test data
+gunzip -c tests/test_data/sample_feats.pickle.gz > tests/test_data/sample_feats.pickle
+
+python setup.py install
+
+echo "Download CUTLASS, required for Deepspeed Evoformer attention kernel"
+git clone https://github.com/NVIDIA/cutlass --depth 1
+conda env config vars set CUTLASS_PATH=$PWD/cutlass
+
+# This setting is used to fix a worker assignment issue during data loading
+conda env config vars set KMP_AFFINITY=none
+
+export LIBRARY_PATH=$CONDA_PREFIX/lib:$LIBRARY_PATH
+export LD_LIBRARY_PATH=$CONDA_PREFIX/lib:$LD_LIBRARY_PATH
+
+
+
