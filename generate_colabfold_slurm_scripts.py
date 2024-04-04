@@ -7,7 +7,7 @@ import requests
 from string import Template
 
 AF_VERSION = "2.3.2"
-ENV = f"/home/jflucier/projects/def-marechal/programs/colabfold_af${AF_VERSION}_env/bin/activate"
+ENV = f"/home/jflucier/projects/def-marechal/programs/colabfold_af{AF_VERSION}_env/bin/activate"
 
 def setup_fold(foldsheet, output_dir, account, db):
     folds = pd.read_csv(foldsheet, sep='\t', index_col="multimer_name")
