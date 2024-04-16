@@ -1,128 +1,260 @@
-
+# tmux env
 cd /home/def-marechal/programs
 
 wget -P /home/def-marechal/programs "https://github.com/conda-forge/miniforge/releases/download/23.3.1-1/Miniforge-pypy3-23.3.1-1-Linux-aarch64.sh"
+rm -fr /home/def-marechal/programs/conda
 bash /home/def-marechal/programs/Miniforge-pypy3-23.3.1-1-Linux-aarch64.sh -b -p /home/def-marechal/programs/conda
-
-export PATH=/home/def-marechal/programs/conda/bin:$PATH
-
-git clone https://github.com/aqlaboratory/openfold.git
-cd /home/def-marechal/programs/openfold
-
-#The following packages are incompatible
-#├─ hmmer 3.3.2  does not exist (perhaps a typo or a missing channel);
-#├─ libgcc 7.2**  does not exist (perhaps a typo or a missing channel);
-#└─ pytorch 1.12*  does not exist (perhaps a typo or a missing channel).
-
+conda update -y -n base -c conda-forge conda
 mamba create -y -n openfold_env python=3.10
 mamba activate openfold_env
 
-export CMAKE_PREFIX_PATH="/usr/local/cuda-11.8":$CMAKE_PREFIX_PATH
-export CPATH="/usr/local/cuda-11.8/include":$CPATH
-export CPATH="/usr/local/cuda-11.8/extras/CUPTI/include":$CPATH
-export CPATH="/usr/local/cuda-11.8/nvvm/include":$CPATH
-export LIBRARY_PATH="/usr/local/cuda-11.8/lib64":$LIBRARY_PATH
-#export LIBRARY_PATH="/usr/local/cuda-11.8/stubs/lib64":$LIBRARY_PATH
-export LIBRARY_PATH="/usr/local/cuda-11.8/nvvm/lib64":$LIBRARY_PATH
+# build pytorch dependancies
+## try using builder scripts: https://github.com/pytorch/builder.git
+cd /home/def-marechal/programs
+git clone https://github.com/pytorch/pytorch.git
+cd pytorch
+git checkout v1.13.1
+
+
+# adapted from builder/aarch64_linux/aarch64_ci_setup.sh
+conda config --set ssl_verify False
+pip install numpy==1.21
+mamba install -y -c conda-forge pyyaml==6.0.1 patchelf==0.17.2 pygit2==1.13.2 openblas==0.3.25=*openmp* ninja==1.11.1 scons==4.5.2
+python --version
+conda --version
+
+tagged_version() {
+  GIT_DESCRIBE="git --git-dir /home/def-marechal/programs/pytorch/.git describe --tags --match v[0-9]*.[0-9]*.[0-9]*"
+  if ${GIT_DESCRIBE} --exact >/dev/null; then
+    ${GIT_DESCRIBE}
+  else
+    return 1
+  fi
+}
+
+if tagged_version >/dev/null; then
+  export OVERRIDE_PACKAGE_VERSION="$(tagged_version | sed -e 's/^v//' -e 's/-.*$//')"
+fi
+
+###############################################################################
+# Run aarch64 builder pytorch
+###############################################################################
+cd /home/def-marechal/programs
+# adding safe directory for git as the permissions will be
+# on the mounted pytorch repo
+git config --global --add safe.directory /home/def-marechal/programs/pytorch
+pip install -r /home/def-marechal/programs/pytorch/requirements.txt
+pip install auditwheel
+# edited script with correct paths
+
+cd /home/def-marechal/programs/pytorch
+python setup.py clean
+cd ..
+#build_ArmComputeLibrary
+rm -fr /home/def-marechal/programs/acl
+mkdir /home/def-marechal/programs/acl
+rm -fr /home/def-marechal/programs/ComputeLibrary
+git clone https://github.com/ARM-software/ComputeLibrary.git -b v23.08 --depth 1 --shallow-submodules
+cd /home/def-marechal/programs/ComputeLibrary
+scons Werror=1 -j8 build_dir=/home/def-marechal/programs/acl/build debug=0 neon=1 opencl=0 os=linux openmp=1 cppthreads=0 arch=armv8a multi_isa=1 fixed_format_kernels=1 build=native
+cp -r arm_compute /home/def-marechal/programs/acl/
+cp -r include /home/def-marechal/programs/acl/
+cp -r utils /home/def-marechal/programs/acl/
+cp -r support /home/def-marechal/programs/acl/
+cp -r src /home/def-marechal/programs/acl/
+cd ..
+
+cd /home/def-marechal/programs/pytorch
+
+#BUILD_TEST=0 PYTORCH_BUILD_VERSION=${OVERRIDE_PACKAGE_VERSION} PYTORCH_BUILD_NUMBER=1 python3 setup.py bdist_wheel
+
+export USE_CUDA=ON
+export USE_CUDNN=ON
+export USE_ROCM=0
 export PATH="/usr/local/cuda-11.8/bin":$PATH
 export PATH="/usr/local/cuda-11.8/nvvm/bin":$PATH
-export EBROOTCUDACORE="/usr/local/cuda-11.8"
-export EBVERSIONCUDACORE="11.8.0"
-export EBDEVELCUDACORE="/usr/local/cuda-11.8"
-export PATH="/usr/local/cuda-11.8":$PATH
 export CUDA_HOME="/usr/local/cuda-11.8"
 export CUDA_ROOT="/usr/local/cuda-11.8"
 export CUDA_PATH="/usr/local/cuda-11.8"
-
-# cuda setup
-export EBROOTCUDA="/usr/local/cuda-11.8"
-export EBVERSIONCUDA="11.8.0"
-export EBDEVELCUDA="/usr/local/cuda-11.8"
-
-# cudnn setup
-export CMAKE_PREFIX_PATH="/usr/local/cudnn-linux-sbsa-8.9.7.29_cuda11-archive":$CMAKE_PREFIX_PATH
-export CPATH="/usr/local/cudnn-linux-sbsa-8.9.7.29_cuda11-archive/include":$CPATH
-export LIBRARY_PATH="/usr/local/cudnn-linux-sbsa-8.9.7.29_cuda11-archive/lib":$LIBRARY_PATH
-export EBROOTCUDNN="/usr/local/cudnn-linux-sbsa-8.9.7.29_cuda11-archive"
-export EBVERSIONCUDNN="8.9.7"
-export EBDEVELCUDNN="/usr/local/cudnn-linux-sbsa-8.9.7.29_cuda11-archive"
-
-#mamba install -c conda-forge -c bioconda -c pytorch libgcc=7.2
-mamba install -y -c conda-forge  setuptools=59.5.0 pip openmm=7.7 pdbfixer
-pip install torch==1.13.1 torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
-git clone --recursive https://github.com/pytorch/pytorch
-cd pytorch
-git checkout v1.13.1
-git submodule sync
-git submodule update --init --recursive --jobs 4
-#export CMAKE_PREFIX_PATH=${CONDA_PREFIX:-"$(dirname $(which conda))/../"}
-export LD_LIBRARY_PATH=/usr/local/cuda-11.8:/usr/local/cuda-11.8/nvvm:/usr/local/cudnn-linux-sbsa-8.9.7.29_cuda11-archive/lib:/usr/local/cuda-11.8/targets/sbsa-linux/lib:/usr/local/cudnn-linux-sbsa-8.9.7.29_cuda11-archive/lib:/usr/local/cudnn-linux-sbsa-8.9.7.29_cuda11-archive/include:/home/def-marechal/programs/nccl_2.16.5-1+cuda11.8_aarch64/include
-export PATH=/usr/local/cuda-11.8/bin:$PATH
-export USE_CUDA=ON
 export CUDNN_LIBRARY_PATH=/usr/local/cudnn-linux-sbsa-8.9.7.29_cuda11-archive/lib
 export CUDNN_INCLUDE_PATH=/usr/local/cudnn-linux-sbsa-8.9.7.29_cuda11-archive/include
+
+export LD_LIBRARY_PATH="/usr/local/cuda-11.8/lib64":$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH="/usr/local/cuda-11.8/nvvm/lib64":$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH="/home/local/cuda-11.8/targets/sbsa-linux/lib":$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH="/opt/nvidia/hpc_sdk/Linux_aarch64/24.1/compilers/lib":$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH="/usr/local/cudnn-linux-sbsa-8.9.7.29_cuda11-archive/lib":$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH="/home/def-marechal/programs/nccl_2.16.5-1+cuda11.8_aarch64/lib":$LD_LIBRARY_PATH
+
+#export INCLUDE="/usr/local/cuda-11.8/include":$INCLUDE
+#export INCLUDE="/usr/local/cuda-11.8/nvvm/include":$INCLUDE
+#export INCLUDE="/usr/local/cuda-11.8/targets/sbsa-linux/include":$INCLUDE
+#export INCLUDE="/usr/local/cudnn-linux-sbsa-8.9.7.29_cuda11-archive/include":$INCLUDE
+#export INCLUDE="/home/def-marechal/programs/nccl_2.16.5-1+cuda11.8_aarch64/include":$INCLUDE
+
 cd third_party/gloo
-# openfold original gloo commit
-# commit 5b143513263133af2b95547e97c07cebeb72bf72 (HEAD)
-git checkout 2565674cd77c79df8ad9e36109a2959b1fd4c213
+git checkout 1090929
+## openfold original gloo commit
+## commit 5b143513263133af2b95547e97c07cebeb72bf72 (HEAD)
+#git checkout 2565674cd77c79df8ad9e36109a2959b1fd4c213
 cd ../..
-# edit CmakeLists.txt and add
-# from https://github.com/pytorch/pytorch/issues/114054
-set(CUDNN_LIBRARY_PATH /usr/local/cudnn-linux-sbsa-8.9.7.29_cuda11-archive/lib/libcudnn.so.8)
-set(CUDNN_INCLUDE_PATH /usr/local/cudnn-linux-sbsa-8.9.7.29_cuda11-archive/include)
-# commented line 50: set(CMAKE_CXX_STANDARD 14 CACHE STRING "The C++ standard whose features are requested to build this target.")
-set(CMAKE_CXX_STANDARD 17 CACHE STRING "The C++ standard whose features are requested to build this target.")
-set(CMAKE_CXX_STANDARD 17)
-cd /home/def-marechal/programs/pytorch
-python setup.py install
 
-Could NOT find CUDNN (missing: CUDNN_LIBRARY_PATH CUDNN_INCLUDE_PATH)
+export CMAKE_PREFIX_PATH=${CONDA_PREFIX:-"$(dirname $(which conda))/../"}
+export CMAKE_PREFIX_PATH=/home/def-marechal/programs/acl/build:$CMAKE_PREFIX_PATH
 
-mamba install -y -c pytorch -c nvidia --force-reinstall pytorch==1.13.* pytorch-cuda=11.8 pytorch-lightning==1.5.10 cudatoolkit==11.8.*
-mamba install -y -c conda-forge biopython==1.79 numpy==1.26.4
-pip install numpy --upgrade
-pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+# sed some weird replacement: remove error
+# ../aten/src/ATen/native/sparse/cuda/SparseCUDATensorMath.cu(835): error: identifier "CUSPARSE_COOMM_ALG2" is undefined
+#    cusparseSpMMAlg_t mm_alg = deterministic ? CUSPARSE_COOMM_ALG2 : CUSPARSE_COOMM_ALG1;
+sed -i 's/CUSPARSE_COOMM_ALG/CUSPARSE_SPMM_COO_ALG/g' aten/src/ATen/native/sparse/cuda/SparseCUDATensorMath.cu
+sed -i 's/CUSPARSE_COOMM_ALG/CUSPARSE_SPMM_COO_ALG/g' torch/utils/hipify/cuda_to_hip_mappings.py
 
-mamba install -y -c conda-forge pandas==2.0 PyYAML==5.4.1 requests scipy==1.7.* tqdm==4.62.2 typing-extensions==3.10 \
-wandb==0.12.21 modelcif==0.7 awscli ml-collections aria2 git
+# edit build.ninja:
+# Link the executable bin/FileStoreTest
+# edit: LINK_LIBRARIES = -Wl,-rpath,/home/def-marechal/programs/pytorch/build/lib: /usr/local/cuda-11.8/targets/sbsa-linux/lib/libcudart.so lib/libtorch_cpu.so  lib/libgtest_main.a  -lpthread  lib/libprotobuf.a  lib/libc10.so  lib/libgtest.a
+# Link the executable bin/TCPStoreTest
+# edit: LINK_LIBRARIES = -Wl,-rpath,/home/def-marechal/programs/pytorch/build/lib: /usr/local/cuda-11.8/targets/sbsa-linux/lib/libcudart.so lib/libtorch_cpu.so  lib/libgtest_main.a  -lpthread  lib/libprotobuf.a  lib/libc10.so  lib/libgtest.a
+# Link the executable bin/HashStoreTest
+# edit: LINK_LIBRARIES = -Wl,-rpath,/home/def-marechal/programs/pytorch/build/lib: /usr/local/cuda-11.8/targets/sbsa-linux/lib/libcudart.so lib/libtorch_cpu.so  lib/libgtest_main.a  -lpthread  lib/libprotobuf.a  lib/libc10.so  lib/libgtest.a
+python setup.py clean
+USE_CUDA=1 \
+USE_CUDNN=1 \
+USE_MKLDNN=1 \
+USE_MKLDNN_ACL=1 \
+USE_FBGEMM=OFF \
+DUSE_MPI=OFF \
+USE_OPENMP=1 \
+TORCH_CUDA_ARCH_LIST=9.0 \
+CUDA_HOME="/usr/local/cuda-11.8" \
+CUDA_NVCC_EXECUTABLE="/usr/local/cuda-11.8/bin/nvcc" \
+CUDNN_LIBRARY="/usr/local/cudnn-linux-sbsa-8.9.7.29_cuda11-archive" \
+CUDNN_INCLUDE_PATH="/usr/local/cudnn-linux-sbsa-8.9.7.29_cuda11-archive/include" \
+CUDNN_ROOT="/usr/local/cudnn-linux-sbsa-8.9.7.29_cuda11-archive" \
+ACL_ROOT_DIR="/home/def-marechal/programs/acl" \
+ACL_INCLUDE_DIR="/home/def-marechal/programs/acl/build" \
+ACL_LIBRARY="/home/def-marechal/programs/acl/build" \
+LAPACK_LIBRARIES="/opt/nvidia/hpc_sdk/Linux_aarch64/24.1/compilers/lib/liblapack.so" \
+BLAS_LIBRARIES="/opt/nvidia/hpc_sdk/Linux_aarch64/24.1/compilers/lib/libblas.so" \
+BLAS_INCLUDE_DIR="/opt/nvidia/hpc_sdk/Linux_aarch64/24.1/compilers/include" \
+LD_LIBRARY_PATH="/usr/local/cuda-11.8/targets/sbsa-linux/lib:/home/def-marechal/programs/pytorch/torch/lib:/home/def-marechal/programs/pytorch/build/lib:/home/def-marechal/programs/acl/build":$LD_LIBRARY_PATH \
+python3 setup.py develop
 
-mamba install -y -c bioconda hhsuite==3.3.0 kalign2==2.04 hmmer==3.4
-# no choice to use hmmer v3.4 for now
+USE_CUDA=1 \
+USE_CUDNN=1 \
+USE_MKLDNN=1 \
+USE_MKLDNN_ACL=1 \
+USE_FBGEMM=OFF \
+DUSE_MPI=OFF \
+USE_OPENMP=1 \
+TORCH_CUDA_ARCH_LIST=9.0 \
+CUDA_HOME="/usr/local/cuda-11.8" \
+CUDA_NVCC_EXECUTABLE="/usr/local/cuda-11.8/bin/nvcc" \
+CUDNN_LIBRARY="/usr/local/cudnn-linux-sbsa-8.9.7.29_cuda11-archive" \
+CUDNN_INCLUDE_PATH="/usr/local/cudnn-linux-sbsa-8.9.7.29_cuda11-archive/include" \
+CUDNN_ROOT="/usr/local/cudnn-linux-sbsa-8.9.7.29_cuda11-archive" \
+ACL_ROOT_DIR="/home/def-marechal/programs/acl" \
+ACL_INCLUDE_DIR="/home/def-marechal/programs/acl/build" \
+ACL_LIBRARY="/home/def-marechal/programs/acl/build" \
+LAPACK_LIBRARIES="/opt/nvidia/hpc_sdk/Linux_aarch64/24.1/compilers/lib/liblapack.so" \
+BLAS_LIBRARIES="/opt/nvidia/hpc_sdk/Linux_aarch64/24.1/compilers/lib/libblas.so" \
+BLAS_INCLUDE_DIR="/opt/nvidia/hpc_sdk/Linux_aarch64/24.1/compilers/include" \
+LD_LIBRARY_PATH="/usr/local/cuda-11.8/targets/sbsa-linux/lib:/home/def-marechal/programs/pytorch/torch/lib:/home/def-marechal/programs/pytorch/build/lib:/home/def-marechal/programs/acl/build":$LD_LIBRARY_PATH \
+python3 setup.py install
+
+USE_CUDA=1 \
+USE_CUDNN=1 \
+USE_MKLDNN=1 \
+USE_MKLDNN_ACL=1 \
+USE_FBGEMM=OFF \
+DUSE_MPI=OFF \
+USE_OPENMP=1 \
+TORCH_CUDA_ARCH_LIST=9.0 \
+CUDA_HOME="/usr/local/cuda-11.8" \
+CUDA_NVCC_EXECUTABLE="/usr/local/cuda-11.8/bin/nvcc" \
+CUDNN_LIBRARY="/usr/local/cudnn-linux-sbsa-8.9.7.29_cuda11-archive" \
+CUDNN_INCLUDE_PATH="/usr/local/cudnn-linux-sbsa-8.9.7.29_cuda11-archive/include" \
+CUDNN_ROOT="/usr/local/cudnn-linux-sbsa-8.9.7.29_cuda11-archive" \
+ACL_ROOT_DIR="/home/def-marechal/programs/acl" \
+ACL_INCLUDE_DIR="/home/def-marechal/programs/acl/build" \
+ACL_LIBRARY="/home/def-marechal/programs/acl/build" \
+LAPACK_LIBRARIES="/opt/nvidia/hpc_sdk/Linux_aarch64/24.1/compilers/lib/liblapack.so" \
+BLAS_LIBRARIES="/opt/nvidia/hpc_sdk/Linux_aarch64/24.1/compilers/lib/libblas.so" \
+BLAS_INCLUDE_DIR="/opt/nvidia/hpc_sdk/Linux_aarch64/24.1/compilers/include" \
+LD_LIBRARY_PATH="/usr/local/cuda-11.8/targets/sbsa-linux/lib:/home/def-marechal/programs/pytorch/torch/lib:/home/def-marechal/programs/pytorch/build/lib:/home/def-marechal/programs/acl/build":$LD_LIBRARY_PATH \
+python3 setup.py bdist_wheel
+
+
+git clone https://github.com/aqlaboratory/openfold.git
+cd /home/def-marechal/programs/openfold
+mamba install -y git-lfs  
 pip install deepspeed==0.12.4
-pip install dm-tree==0.1.7
+# need bazel
+export PATH=/home/def-marechal/programs:$PATH
+pip install dm-tree==0.1.6
+pip install git+https://github.com/NVIDIA/dllogger.git
+pip install git+https://github.com/Dao-AILab/flash-attention.git@5b838a8
 
-## doent not compile on arm64
-#wget http://eddylab.org/software/hmmer/hmmer-3.3.2.tar.gz
-#tar -xvf hmmer-3.3.2.tar.gz
-#cd hmmer-3.3.2/
-#./configure --prefix=$PWD
-#make
-#make check                        # optional: automated tests
-#make install
+mamba install cudatoolkit==11.8.*
+mamba install pdbfixer biopython==1.79 pandas==2.0 PyYAML==5.4.1 scipy requests tqdm==4.62.2 typing-extensions==3.10
+mamba install pdbfixer wandb==0.12.21 modelcif==0.7 awscli ml-collections aria2 git
+mamba install openmm==7.7
+mamba install -c bioconda hhsuite==3.3.0 kalign2==2.04 hmmer==3.4
+# no good, need to compile nightly build
+#mamba install -c bioconda mmseqs2
+#conda remove mmseqs2
+cd /home/def-marechal/programs
+git clone https://github.com/soedinglab/MMseqs2.git
+cd MMseqs2
+mkdir build
+cd build
+cmake -DCMAKE_BUILD_TYPE=RELEASE -DCMAKE_INSTALL_PREFIX=. ..
+make
+make install
+export PATH=$(pwd)/bin/:$PATH
+
+# manually install pytorch-lightning deps without breaking torch
+mamba install filelock==3.13.4 fsspec==2024.3.1 gmp==6.3.0 gmpy2==2.1.2 filelock==3.13.4 fsspec==2024.3.1 gmp==6.3.0 \
+gmpy2==2.1.2 jinja2==3.1.3 libuv==1.48.0 markupsafe==2.1.5 mpc==1.3.1 mpfr==4.2.1 mpmath==1.3.0 networkx==3.3  \
+nomkl==1.0  packaging==24.0  sleef==3.5.1 sympy==1.12
+
+mamba install --no-deps pytorch-lightning==1.8.* lightning-utilities tensorboardx torchmetrics typing_extensions libprotobuf protobuf
+
+cd /home/def-marechal/programs/openfold
+export SCRIPT_DIR=/home/def-marechal/programs/openfold/scripts
+export DOWNLOAD_DIR=/net/nfs-ip34/fast/gh/data
+bash scripts/install_third_party_dependencies.sh
+bash scripts/download_mmseqs_dbs.sh data/
+bash scripts/prep_mmseqs_dbs.sh /net/nfs-ip34/fast/gh/data/
+bash "${SCRIPT_DIR}/download_uniref30.sh" "${DOWNLOAD_DIR}"
+bash "${SCRIPT_DIR}/download_alphafold_params.sh" "${DOWNLOAD_DIR}"
+bash "${SCRIPT_DIR}/download_openfold_params.sh" "${DOWNLOAD_DIR}"
+bash "${SCRIPT_DIR}/download_pdb70.sh" "${DOWNLOAD_DIR}"
+bash "${SCRIPT_DIR}/download_uniref90.sh" "${DOWNLOAD_DIR}"
+
+# alphafold db
+#bash "${SCRIPT_DIR}/download_bfd.sh" "${DOWNLOAD_DIR}"
+#bash "${SCRIPT_DIR}/download_mgnify.sh" "${DOWNLOAD_DIR}"
+#bash "${SCRIPT_DIR}/download_pdb_mmcif.sh" "${DOWNLOAD_DIR}"
+#bash "${SCRIPT_DIR}/download_uniprot.sh" "${DOWNLOAD_DIR}"
+#bash "${SCRIPT_DIR}/download_pdb_seqres.sh" "${DOWNLOAD_DIR}"
+#bash "${SCRIPT_DIR}/download_pdb_mmcif.sh" "${DOWNLOAD_DIR}"
+#bash "${SCRIPT_DIR}/download_pdb_seqres.sh" "${DOWNLOAD_DIR}"
+#bash "${SCRIPT_DIR}/download_uniclust30.sh" "${DOWNLOAD_DIR}"
+#bash "${SCRIPT_DIR}/download_uniprot.sh" "${DOWNLOAD_DIR}"
 
 
 
-wget -N --no-check-certificate -P openfold/resources \
-    https://git.scicore.unibas.ch/schwede/openstructure/-/raw/7102c63615b64735c4941278d92b554ec94415f8/modules/mol/alg/src/stereo_chemical_props.txt
-
-# Certain tests need access to this file
-mkdir -p tests/test_data/alphafold/common
-ln -rs openfold/resources/stereo_chemical_props.txt tests/test_data/alphafold/common
-
-# Decompress test data
-gunzip -c tests/test_data/sample_feats.pickle.gz > tests/test_data/sample_feats.pickle
-
-python setup.py install
-
-echo "Download CUTLASS, required for Deepspeed Evoformer attention kernel"
-git clone https://github.com/NVIDIA/cutlass --depth 1
-conda env config vars set CUTLASS_PATH=$PWD/cutlass
-
-# This setting is used to fix a worker assignment issue during data loading
-conda env config vars set KMP_AFFINITY=none
-
-export LIBRARY_PATH=$CONDA_PREFIX/lib:$LIBRARY_PATH
-export LD_LIBRARY_PATH=$CONDA_PREFIX/lib:$LD_LIBRARY_PATH
+#scripts/download_cameo.py
+#scripts/download_openfold_params_gdrive.sh
+#scripts/download_openfold_params_huggingface.sh
+#scripts/download_openfold_soloseq_params.sh
+#scripts/download_roda_pdbs.sh
+#scripts/download_small_bfd.sh
+#scripts/download_soloseq_embeddings.sh
 
 
+### test
+python3 scripts/precompute_alignments_mmseqs.py
+## todo: add thread option to ./scripts/colabfold_search.sh
+## todo: edit call to colabfold_search to include threads
 
+## pass them to the inference script using the --use_precomputed_alignments

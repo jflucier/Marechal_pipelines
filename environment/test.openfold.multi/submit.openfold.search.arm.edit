@@ -1,0 +1,44 @@
+#!/bin/bash
+
+#SBATCH --job-name=search_multi
+#SBATCH -D /home/jflucier/projects/def-marechal/programs/Marechal_pipelines/environment/test.colabfold.multi
+#SBATCH -o /home/jflucier/projects/def-marechal/programs/Marechal_pipelines/environment/test.colabfold.multi/slurm-%A_%a.out
+#SBATCH --account=def-marechal
+#SBATCH --time=4:00:00
+#SBATCH --cpus-per-task=8
+#SBATCH --mem=40G
+
+set -ex
+
+echo "activating env"
+mamba activate openfold_env
+
+export OF_SCRIPTS=/home/def-marechal/programs/openfold/scripts
+export WORK=/home/def-marechal/programs/Marechal_pipelines/environment
+export IN=${WORK}/test.openfold.multi/DTX1_DTX2.fa
+export OUT=${WORK}/test.openfold.multi/openfold.multi
+export DOWNLOAD_DIR=/net/nfs-ip34/fast/gh/data
+
+echo "running colabfold on $IN"
+python3 ${OF_SCRIPTS}/precompute_alignments_mmseqs.py \
+--hhsearch_binary_path hhsearch \
+--pdb70 \
+--env_db colabfold_envdb_202108_db \
+${IN} \
+${DOWNLOAD_DIR}/mmseqs_dbs \
+${DOWNLOAD_DIR}/uniref30/UniRef30_2021_03 \
+${OUT} \
+mmseqs
+
+
+colabfold_search \
+--threads 8 --use-env 1 --db-load-mode 0 \
+--mmseqs mmseqs \
+--db1 ${DOWNLOAD_DIR}/uniref30_2302_db \
+--db2 ${DOWNLOAD_DIR}/pdb100_230517 \
+--db3 ${DOWNLOAD_DIR}/colabfold_envdb_202108_db \
+${IN} ${DOWNLOAD_DIR} ${OUT}
+
+echo "done!"
+
+
