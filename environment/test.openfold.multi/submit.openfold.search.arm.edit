@@ -20,13 +20,14 @@ export OUT=${WORK}/test.openfold.multi/openfold.multi
 export DOWNLOAD_DIR=/net/nfs-ip34/fast/gh/data
 
 echo "running colabfold on $IN"
+cd /home/def-marechal/programs/openfold
 python3 ${OF_SCRIPTS}/precompute_alignments_mmseqs.py \
 --hhsearch_binary_path hhsearch \
---pdb70 \
+--pdb70 ${DOWNLOAD_DIR}/pdb70/pdb70 \
 --env_db colabfold_envdb_202108_db \
 ${IN} \
 ${DOWNLOAD_DIR}/mmseqs_dbs \
-${DOWNLOAD_DIR}/uniref30/UniRef30_2021_03 \
+uniref30/UniRef30_2021_03 \
 ${OUT} \
 mmseqs
 
