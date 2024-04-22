@@ -33,7 +33,7 @@ ${OUT} \
 mmseqs
 
 python ${OF_SCRIPTS}/precompute_alignments.py \
-${IN}/DTX1.fa \
+${IN} \
 ${OUT} \
 --uniprot_database_path /tank/jflucier/mmseqs_dbs/uniprot/uniprot.fasta \
 --jackhmmer_binary_path jackhmmer
