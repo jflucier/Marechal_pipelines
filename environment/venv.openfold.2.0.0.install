@@ -222,6 +222,9 @@ cd /home/def-marechal/programs/openfold
 export SCRIPT_DIR=/home/def-marechal/programs/openfold/scripts
 export DOWNLOAD_DIR=/net/nfs-ip34/fast/gh/data
 bash scripts/install_third_party_dependencies.sh
+
+
+# install db
 bash scripts/download_mmseqs_dbs.sh data/
 #uniref30 no good, download manually from colabdb and build
 cd /net/nfs-ip34/fast/gh/data/mmseqs_dbs
@@ -239,6 +242,15 @@ mmseqs createdb pdb70_220313.fasta.gz pdb70_220313
 mmseqs createindex pdb70_220313 tmp3 --remove-tmp-files 1
 wget https://wwwuser.gwdg.de/~compbiol/data/hhsuite/databases/hhsuite_dbs/pdb70_from_mmcif_220313.tar.gz
 tar xzvf pdb70_from_mmcif_220313.tar.gz pdb70_a3m.ffdata pdb70_a3m.ffindex
+bash "${SCRIPT_DIR}/download_pdb70.sh" "${DOWNLOAD_DIR}"
+mv mmseqs_dbs/pdb70_a3m.ffdata mmseqs_dbs/pdb70_220313_a3m.ffdata
+mv mmseqs_dbs/pdb70_a3m.ffindex mmseqs_dbs/pdb70_220313_a3m.ffindex
+mv mmseqs_dbs/pdb70_clu.tsv mmseqs_dbs/pdb70_220313_clu.tsv
+mv mmseqs_dbs/pdb70_cs219.ffdata mmseqs_dbs/pdb70_220313_cs219.ffdata
+mv mmseqs_dbs/pdb70_cs219.ffindex mmseqs_dbs/pdb70_220313_cs219.ffindex
+mv mmseqs_dbs/pdb70_hhm.ffdata mmseqs_dbs/pdb70_220313_hhm.ffdata
+mv mmseqs_dbs/pdb70_hhm.ffindex mmseqs_dbs/pdb70_220313_hhm.ffindex
+
 
 cd /net/nfs-ip34/fast/gh/data/mmseqs_dbs
 wget https://wwwuser.gwdg.de/~compbiol/colabfold/pdb100_230517.fasta.gz
@@ -247,10 +259,66 @@ mmseqs createindex pdb100_230517 tmp3 --remove-tmp-files 1
 wget https://wwwuser.gwdg.de/~compbiol/data/hhsuite/databases/hhsuite_dbs/pdb100_foldseek_230517.tar.gz
 tar xzvf pdb100_foldseek_230517.tar.gz pdb100_a3m.ffdata pdb100_a3m.ffindex
 
+PDB_SERVER="${2:-"rsync.wwpdb.org::ftp"}"
+PDB_PORT="${3:-"33444"}"
 mkdir -p pdb/divided
 mkdir -p pdb/obsolete
 rsync -rlpt -v -z --delete --port=${PDB_PORT} ${PDB_SERVER}/data/structures/divided/mmCIF/ pdb/divided
 rsync -rlpt -v -z --delete --port=${PDB_PORT} ${PDB_SERVER}/data/structures/obsolete/mmCIF/ pdb/obsolete
+
+DOWNLOAD_DIR="/net/nfs-ip34/fast/gh/data/mmseqs_dbs/"
+ROOT_DIR="${DOWNLOAD_DIR}/pdb_mmcif"
+RAW_DIR="${ROOT_DIR}/raw"
+MMCIF_DIR="${ROOT_DIR}/mmcif_files"
+
+echo "Running rsync to fetch all mmCIF files (note that the rsync progress estimate might be inaccurate)..."
+mkdir --parents "${RAW_DIR}"
+rsync --recursive --links --perms --times --compress --info=progress2 --delete --port=33444 \
+  rsync.rcsb.org::ftp_data/structures/divided/mmCIF/ \
+  "${RAW_DIR}"
+
+echo "Unzipping all mmCIF files..."
+find "${RAW_DIR}/" -type f -iname "*.gz" -exec gunzip {} +
+
+echo "Flattening all mmCIF files..."
+mkdir --parents "${MMCIF_DIR}"
+find "${RAW_DIR}" -type d -empty -delete  # Delete empty directories.
+for subdir in "${RAW_DIR}"/*; do
+  mv "${subdir}/"*.cif "${MMCIF_DIR}"
+done
+
+# Delete empty download directory structure.
+find "${RAW_DIR}" -type d -empty -delete
+
+aria2c "ftp://ftp.wwpdb.org/pub/pdb/data/status/obsolete.dat" --dir="${ROOT_DIR}"
+
+cp -r /net/nfs-ip34/fast/gh/data/params /home/def-marechal/programs/openfold/openfold/resources/
+
+DOWNLOAD_DIR=/tank/jflucier/mmseqs_dbs
+ROOT_DIR="${DOWNLOAD_DIR}/uniprot"
+
+TREMBL_SOURCE_URL="ftp://ftp.ebi.ac.uk/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot_trembl.fasta.gz"
+TREMBL_BASENAME=$(basename "${TREMBL_SOURCE_URL}")
+TREMBL_UNZIPPED_BASENAME="${TREMBL_BASENAME%.gz}"
+
+SPROT_SOURCE_URL="ftp://ftp.ebi.ac.uk/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot_sprot.fasta.gz"
+SPROT_BASENAME=$(basename "${SPROT_SOURCE_URL}")
+SPROT_UNZIPPED_BASENAME="${SPROT_BASENAME%.gz}"
+
+mkdir --parents "${ROOT_DIR}"
+aria2c "${TREMBL_SOURCE_URL}" --dir="${ROOT_DIR}"
+aria2c "${SPROT_SOURCE_URL}" --dir="${ROOT_DIR}"
+pushd "${ROOT_DIR}"
+gunzip "${ROOT_DIR}/${TREMBL_BASENAME}"
+gunzip "${ROOT_DIR}/${SPROT_BASENAME}"
+
+# Concatenate TrEMBL and SwissProt, rename to uniprot and clean up.
+cat "${ROOT_DIR}/${SPROT_UNZIPPED_BASENAME}" >> "${ROOT_DIR}/${TREMBL_UNZIPPED_BASENAME}"
+mv "${ROOT_DIR}/${TREMBL_UNZIPPED_BASENAME}" "${ROOT_DIR}/uniprot.fasta"
+rm "${ROOT_DIR}/${SPROT_UNZIPPED_BASENAME}"
+popd
+
+
 
 
 # af download not required!

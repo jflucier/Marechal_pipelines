@@ -15,31 +15,41 @@ mamba activate openfold_env
 
 export OF_SCRIPTS=/home/def-marechal/programs/openfold/scripts
 export WORK=/home/def-marechal/programs/Marechal_pipelines/environment
-export IN=${WORK}/test.openfold.multi/DTX1_DTX2.fa
+export IN=${WORK}/test.openfold.multi
 export OUT=${WORK}/test.openfold.multi/openfold.multi
-export DOWNLOAD_DIR=/net/nfs-ip34/fast/gh/data
+export DOWNLOAD_DIR=/tank/jflucier
 
 echo "running colabfold on $IN"
 cd /home/def-marechal/programs/openfold
 python3 ${OF_SCRIPTS}/precompute_alignments_mmseqs.py \
+--threads 72 \
 --hhsearch_binary_path hhsearch \
---pdb70 ${DOWNLOAD_DIR}/pdb70/pdb70 \
+--pdb70 ${DOWNLOAD_DIR}/mmseqs_dbs/pdb70_220313 \
 --env_db colabfold_envdb_202108_db \
-${IN} \
+${IN}/DTX1_DTX2.fa \
 ${DOWNLOAD_DIR}/mmseqs_dbs \
-uniref30/UniRef30_2021_03 \
+uniref30_2302_db \
 ${OUT} \
 mmseqs
 
+python ${OF_SCRIPTS}/precompute_alignments.py \
+${IN}/DTX1.fa \
+${OUT} \
+--uniprot_database_path /tank/jflucier/mmseqs_dbs/uniprot/uniprot.fasta \
+--jackhmmer_binary_path jackhmmer
 
-colabfold_search \
---threads 8 --use-env 1 --db-load-mode 0 \
---mmseqs mmseqs \
---db1 ${DOWNLOAD_DIR}/uniref30_2302_db \
---db2 ${DOWNLOAD_DIR}/pdb100_230517 \
---db3 ${DOWNLOAD_DIR}/colabfold_envdb_202108_db \
-${IN} ${DOWNLOAD_DIR} ${OUT}
+python ${OF_SCRIPTS}/precompute_alignments.py \
+${IN}/DTX2.fa \
+${OUT} \
+--uniprot_database_path /tank/jflucier/mmseqs_dbs/uniprot/uniprot.fasta \
+--jackhmmer_binary_path jackhmmer
 
-echo "done!"
+python3 run_pretrained_openfold.py \
+${IN} \
+${DOWNLOAD_DIR}/mmseqs_dbs/pdb_mmcif/mmcif_files \
+--use_precomputed_alignments ${OUT} \
+--config_preset "model_1_multimer_v3" \
+--model_device "cuda:0" \
+--output_dir ${OUT}/DTX1_1_DTX2_1
 
 
