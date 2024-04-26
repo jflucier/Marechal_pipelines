@@ -318,6 +318,70 @@ mv "${ROOT_DIR}/${TREMBL_UNZIPPED_BASENAME}" "${ROOT_DIR}/uniprot.fasta"
 rm "${ROOT_DIR}/${SPROT_UNZIPPED_BASENAME}"
 popd
 
+###### need to compile openmm #####
+# http://docs.openmm.org/latest/userguide/library/02_compiling.html#compiling-openmm-from-source-code
+
+mamba activate openfold_env
+cd /home/def-marechal/programs/
+wget -O openmm_7.7.0.tar.gz https://github.com/openmm/openmm/archive/refs/tags/7.7.0.tar.gz
+tar -xvzf openmm_7.7.0.tar.gz
+mamba install -c conda-forge cmake make cython swig doxygen
+
+export USE_CUDA=1
+export USE_CUDNN=1
+export USE_MKLDNN=1
+export USE_MKLDNN_ACL=1
+export USE_FBGEMM=OFF
+export DUSE_MPI=OFF
+export USE_OPENMP=1
+export TORCH_CUDA_ARCH_LIST=9.0
+export CUDA_HOME="/usr/local/cuda-11.8"
+export CUDA_NVCC_EXECUTABLE="/usr/local/cuda-11.8/bin/nvcc"
+export CUDNN_LIBRARY="/usr/local/cudnn-linux-sbsa-8.9.7.29_cuda11-archive"
+export CUDNN_INCLUDE_PATH="/usr/local/cudnn-linux-sbsa-8.9.7.29_cuda11-archive/include"
+export CUDNN_ROOT="/usr/local/cudnn-linux-sbsa-8.9.7.29_cuda11-archive"
+export ACL_ROOT_DIR="/home/def-marechal/programs/acl"
+export ACL_INCLUDE_DIR="/home/def-marechal/programs/acl/build"
+export ACL_LIBRARY="/home/def-marechal/programs/acl/build"
+export LAPACK_LIBRARIES="/opt/nvidia/hpc_sdk/Linux_aarch64/24.1/compilers/lib/liblapack.so"
+export BLAS_LIBRARIES="/opt/nvidia/hpc_sdk/Linux_aarch64/24.1/compilers/lib/libblas.so"
+export BLAS_INCLUDE_DIR="/opt/nvidia/hpc_sdk/Linux_aarch64/24.1/compilers/include"
+export LD_LIBRARY_PATH="/usr/local/cuda-11.8/targets/sbsa-linux/lib:/home/def-marechal/programs/pytorch/torch/lib:/home/def-marechal/programs/pytorch/build/lib:/home/def-marechal/programs/acl/build":$LD_LIBRARY_PATH
+
+export CMAKE_INSTALL_PREFIX=/home/def-marechal/programs/conda/envs/openfold_env
+#export OPENCL_INCLUDE_DIR=/usr/local/cuda-11.8/include
+#export OPENCL_LIBRARY=/usr/local/cuda-11.8/lib64/libOpenCL.so
+mkdir build
+cd build
+ccmake ..
+make
+make test
+make install
+make PythonInstall
+python -m openmm.testInstallation
+
+## openmm bug
+# There is no registered Platform called "CUDA". Test these lines, CUDA should be in list
+#import openmm as mm
+#print(mm.Platform.getNumPlatforms())
+#platforms = [ mm.Platform.getPlatform(index).getName() for index in range(mm.Platform.getNumPlatforms()) ]
+#print (platforms)
+
+# error:FileNotFoundError: [Errno 2] No such file or directory: '/home/def-marechal/programs/openfold/openfold/resources/stereo_chemical_props.txt'
+wget -q -P /home/def-marechal/programs/openfold/openfold/resources/ \
+https://git.scicore.unibas.ch/schwede/openstructure/-/raw/7102c63615b64735c4941278d92b554ec94415f8/modules/mol/alg/src/stereo_chemical_props.txt
+
+# install plot generation
+cd /home/def-marechal/programs/openfold/
+wget -O visualize_alphafold_results.py https://raw.githubusercontent.com/jasperzuallaert/VIBFold/main/visualize_alphafold_results.py
+
+
+
+
+
+
+
+
 
 
 
