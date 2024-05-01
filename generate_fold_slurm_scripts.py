@@ -9,7 +9,8 @@ from string import Template
 AF_VERSION = "2.3.2"
 ENV = f"/home/jflucier/projects/def-marechal/programs/colabfold_af{AF_VERSION}_env/bin/activate"
 
-def setup_fold(foldsheet, output_dir, account, db):
+
+def setup_fold(fold_engine, foldsheet, output_dir, account, db):
     folds = pd.read_csv(foldsheet, sep='\t', index_col="multimer_name")
 
     # cleanup submission script if exists
@@ -38,15 +39,46 @@ def setup_fold(foldsheet, output_dir, account, db):
         generate_pdb(workdir, row)
 
         # gen submit script:
-        generate_search_script(output_dir, index, db, workdir, fasta_out, account)
-        generate_fold_script(output_dir, index, db, workdir, account)
+        if fold_engine == "colabfold":
+            generate_colabfold_scripts(output_dir, index, db, workdir, fasta_out, account)
+        else:
+            generate_openfold_script(output_dir, index, db, workdir, fasta_out, account)
+            print(f"\nPlease submit jobs using fopllowing command:")
+            print(f"sh {output_dir}/01_submit_all_openfold_jobs.sh")
 
+
+def generate_openfold_script(output_dir, index, db, workdir, fasta_out, account):
+    script_path = os.path.dirname(__file__)
+    tmpl_data = {
+        'FOLD_NAME': f"{index}",
+        'OPENFOLD_SCRIPTS': "/home/def-marechal/programs/openfold/scripts",
+        'OPENFOLD_DB': db,
+        'IN_DIR': f"{workdir}",
+        'OUT_DIR': f"{workdir}",
+        'ACCOUNT': account
+    }
+
+    print(f"Generating openfold submission script: {workdir}/submit_openfold.{index}.sh\n")
+    with open(os.path.join(script_path, "submit_openfold.tmpl"), 'r') as f:
+        src = Template(f.read())
+        result = src.substitute(tmpl_data)
+        with open(os.path.join(workdir, f"submit_openfold.{index}.sh"), 'w') as out:
+            out.write(result)
+
+    with open(os.path.join(output_dir, "submit_openfold_jobs.sh"), 'a') as o:
+        o.write(f"sbatch {workdir}/submit_openfold_jobs.{index}.sh\n")
+
+
+def generate_colabfold_scripts(output_dir, index, db, workdir, fasta_out, account):
+    generate_colabfold_search_script(output_dir, index, db, workdir, fasta_out, account)
+    generate_colabfold_fold_script(output_dir, index, db, workdir, account)
     print(f"\nPlease submit jobs in 2 steps:")
     print(f"Step 1: sh {output_dir}/01_submit_all_colab_search_jobs.sh")
     print(f"Step 2: sh {output_dir}/02_submit_all_colab_fold_jobs.sh")
     print(f"\nMake sure Step 1 completes successfully before running Step2.")
 
-def generate_fold_script(output_dir, index, db, workdir, account):
+
+def generate_colabfold_fold_script(output_dir, index, db, workdir, account):
     script_path = os.path.dirname(__file__)
     fold_tmpl_data = {
         'ENV': ENV,
@@ -69,7 +101,7 @@ def generate_fold_script(output_dir, index, db, workdir, account):
         o.write(f"sbatch {workdir}/submit_colab_fold.{index}.sh\n")
 
 
-def generate_search_script(output_dir, index, db, workdir, fasta_out, account):
+def generate_colabfold_search_script(output_dir, index, db, workdir, fasta_out, account):
     script_path = os.path.dirname(__file__)
     search_tmpl_data = {
         'ENV': ENV,
@@ -153,6 +185,13 @@ if __name__ == '__main__':
     # mandatory
     argParser.add_argument(
         "-fs",
+        "--fold_engine",
+        help="Colabfold or Openfold",
+        required=True,
+        default="colabfold"
+    )
+    argParser.add_argument(
+        "-fs",
         "--foldsheet",
         help="your tab seperated fold sheet: "
              "multimer_name<tab>protein1_name<tab>protein1_nbr<tab"
@@ -185,7 +224,12 @@ if __name__ == '__main__':
 
     args = argParser.parse_args()
 
+    if args.fold_engine != "colabfold" and args.fold_engine != "openfold":
+        print("Fold engine must be colabfold or openfold")
+        exit(1)
+
     setup_fold(
+        args.fold_engine,
         args.foldsheet,
         args.output,
         args.account,

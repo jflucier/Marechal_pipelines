@@ -371,10 +371,9 @@ python -m openmm.testInstallation
 wget -q -P /home/def-marechal/programs/openfold/openfold/resources/ \
 https://git.scicore.unibas.ch/schwede/openstructure/-/raw/7102c63615b64735c4941278d92b554ec94415f8/modules/mol/alg/src/stereo_chemical_props.txt
 
-# install plot generation
-cd /home/def-marechal/programs/openfold/
-wget -O visualize_alphafold_results.py https://raw.githubusercontent.com/jasperzuallaert/VIBFold/main/visualize_alphafold_results.py
-
+# install AF2multimer-analysis
+#cd /home/def-marechal/programs
+#git clone https://github.com/walterlab-HMS/AF2multimer-analysis.git
 
 
 
