@@ -85,8 +85,9 @@ mv ${OUT}/${NAME}/predictions/*unrelaxed.pdb ${OUT}/${NAME}/predictions/unrelaxe
 python ${AF_ANALYSIS_SCRIPTS}/colabfold_analysis.py ${OUT}/${NAME}/predictions
 
 echo "zipping results"
-cd $outdir/../
-zip -r $job_name.zip $job_name/*
+cd ${OUT}/${NAME}/predictions
+zip -r ${NAME}.zip * -x "*.pkl"
+mv ${NAME}.zip ${OUT}/
 
 echo "done!"
 
