@@ -187,7 +187,6 @@ if __name__ == '__main__':
         "-fe",
         "--fold_engine",
         help="Colabfold or Openfold (default: colabfold)",
-        required=True,
         default="colabfold"
     )
     argParser.add_argument(
