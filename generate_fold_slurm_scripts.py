@@ -186,7 +186,7 @@ if __name__ == '__main__':
     argParser.add_argument(
         "-fe",
         "--fold_engine",
-        help="Colabfold or Openfold",
+        help="Colabfold or Openfold (default: colabfold)",
         required=True,
         default="colabfold"
     )
@@ -209,7 +209,7 @@ if __name__ == '__main__':
     argParser.add_argument(
         "-a",
         "--account",
-        help="your allocation account",
+        help="your allocation account (default: def-marechal)",
         type=str,
         default="def-marechal"
     )
@@ -217,7 +217,7 @@ if __name__ == '__main__':
     argParser.add_argument(
         "-db",
         "--database",
-        help="your colabfold database path",
+        help="your colabfold database path (default: /home/jflucier/projects/def-marechal/programs/colabfold_db)",
         type=str,
         default="/home/jflucier/projects/def-marechal/programs/colabfold_db"
     )
