@@ -43,8 +43,15 @@ def setup_fold(fold_engine, foldsheet, output_dir, account, db):
             generate_colabfold_scripts(output_dir, index, db, workdir, fasta_out, account)
         else:
             generate_openfold_script(output_dir, index, db, workdir, fasta_out, account)
-            print(f"\nPlease submit jobs using fopllowing command:")
-            print(f"sh {output_dir}/01_submit_all_openfold_jobs.sh")
+
+    if fold_engine == "colabfold":
+        print(f"\nPlease submit jobs in 2 steps:")
+        print(f"Step 1: sh {output_dir}/01_submit_all_colab_search_jobs.sh")
+        print(f"Step 2: sh {output_dir}/02_submit_all_colab_fold_jobs.sh")
+        print(f"\nMake sure Step 1 completes successfully before running Step2.")
+    else:
+        print(f"\nPlease submit jobs using fopllowing command:")
+        print(f"sh {output_dir}/01_submit_all_openfold_jobs.sh")
 
 
 def generate_openfold_script(output_dir, index, db, workdir, fasta_out, account):
@@ -72,10 +79,6 @@ def generate_openfold_script(output_dir, index, db, workdir, fasta_out, account)
 def generate_colabfold_scripts(output_dir, index, db, workdir, fasta_out, account):
     generate_colabfold_search_script(output_dir, index, db, workdir, fasta_out, account)
     generate_colabfold_fold_script(output_dir, index, db, workdir, account)
-    print(f"\nPlease submit jobs in 2 steps:")
-    print(f"Step 1: sh {output_dir}/01_submit_all_colab_search_jobs.sh")
-    print(f"Step 2: sh {output_dir}/02_submit_all_colab_fold_jobs.sh")
-    print(f"\nMake sure Step 1 completes successfully before running Step2.")
 
 
 def generate_colabfold_fold_script(output_dir, index, db, workdir, account):
