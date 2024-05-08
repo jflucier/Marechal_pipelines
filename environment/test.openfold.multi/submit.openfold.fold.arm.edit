@@ -11,35 +11,66 @@
 
 set -ex
 
-## uncomment one of these env
-#AF_VERSION=2.3.1
-#AF_VERSION=2.3.2
+echo "activating env"
+mamba activate openfold_env
 
-ENV=/home/jflucier/projects/def-marechal/programs/colabfold_af${AF_VERSION}_env/bin/activate
+export OF_SCRIPTS=/home/def-marechal/programs/openfold/scripts
+export AF_ANALYSIS_SCRIPTS=/home/def-marechal/programs/Marechal_pipelines/AF2multimer-analysis
+export WORK=/home/def-marechal/programs/Marechal_pipelines/environment
+export IN=${WORK}/test.openfold.multi
+export OUT=${WORK}/test.openfold.multi/openfold.multi
+export DOWNLOAD_DIR=/tank/jflucier
+export NAME="DTX1_1-DTX2_1"
 
-module load gcc/9.3.0 cuda/11.4 openmpi/4.0.3 openmm/8.0.0 mmseqs2/14-7e284 hh-suite/3.3.0 hmmer/3.2.1
+fold_start=`date +%s`
+for model in 1 2 3
+do
+  echo "folding using model $model"
+  python3 run_pretrained_openfold.py \
+  ${IN} \
+  ${DOWNLOAD_DIR}/mmseqs_dbs/pdb_mmcif/mmcif_files \
+  --use_precomputed_alignments ${OUT} \
+  --config_preset "model_${model}_multimer_v3" \
+  --model_device "cuda:0" \
+  --output_dir ${OUT}/${NAME} \
+  --save_outputs
 
-source ${ENV}
+  #/home/def-marechal/programs/Marechal_pipelines/environment/test.openfold.multi/openfold.multi/DTX1_1_DTX2_1/predictions/DTX1_1-DTX2_1_model_1_multimer_v3_output_dict.pkl
+  python ${OF_SCRIPTS}/generate_pae_plddt_plot.py \
+  --input_pkl ${OUT}/${NAME}/predictions/${NAME}_model_${model}_multimer_v3_output_dict.pkl \
+  --output_dir ${OUT}/${NAME}/predictions/ \
+  --basename "${NAME}_model_${model}_multimer_v3_relaxed"
 
-export TF_FORCE_UNIFIED_MEMORY="1"
-export XLA_PYTHON_CLIENT_MEM_FRACTION="4.0"
-export XLA_PYTHON_CLIENT_ALLOCATOR="platform"
-export TF_FORCE_GPU_ALLOW_GROWTH="true"
+done
 
-export WORK=/lustre06/project/6003342/programs/Marechal_pipelines/environment/test.colabfold.multi
-export IN=${WORK}/colabfold.af${AF_VERSION}.multi/0.a3m
-export OUT=${WORK}/colabfold.af${AF_VERSION}.multi
-export DOWNLOAD_DIR=/project/def-marechal/programs/colabfold_db
+convert ${OUT}/${NAME}/predictions/*_pLDDT.png +append ${OUT}/${NAME}/predictions/${NAME}_all_PLDDT.png
+convert ${OUT}/${NAME}/predictions/*_PAE.png  +append ${OUT}/${NAME}/predictions/${NAME}_all_PAE.png
 
-echo "running fold on /lustre06/project/6003342/programs/Marechal_pipelines/environment/test.colabfold.multi/DTX1.fa"
-colabfold_batch \
---use-gpu-relax --amber --num-relax 3 \
---num-models 3 \
---num-recycle 30 --recycle-early-stop-tolerance 0.5 \
---model-type auto \
---data $DOWNLOAD_DIR \
-${IN} \
-${OUT}
+python ${OF_SCRIPTS}/generate_coverage_plot.py \
+--input_pkl ${OUT}/${NAME}/${NAME}_model_${model}_multimer_v3_feature_dict.pickle \
+--output_dir ${OUT}/${NAME}/predictions/ \
+--basename "${NAME}_multimer_v3_relaxed"
+
+fold_end=`date +%s`
+fold_time=$(((fold_end-fold_start)/60))
+
+echo "running AF2multimer-analysis on $outdir"
+# need to create .done.txt file for AF2multimer-analysis
+touch ${OUT}/${NAME}/predictions/${NAME}.done.txt
+mkdir -p ${OUT}/${NAME}/predictions/unrelaxed
+mv ${OUT}/${NAME}/predictions/*unrelaxed.pdb ${OUT}/${NAME}/predictions/unrelaxed/
+python ${AF_ANALYSIS_SCRIPTS}/colabfold_analysis.py ${OUT}/${NAME}/predictions
+
+echo "zipping results"
+cd ${OUT}/${NAME}/predictions
+zip -r ${NAME}.zip * -x "*.pkl"
+mv ${NAME}.zip ${OUT}/
+
+# output: exp_name\tfold time
+# in min
+echo "write fold time in /tank/jflucier/run_stats.fold.tsv"
+echo -e "${NAME}\t$fold_time" >> /tank/jflucier/run_stats.fold.tsv
+
 
 echo "done!"
 

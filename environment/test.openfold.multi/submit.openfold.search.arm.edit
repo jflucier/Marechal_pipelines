@@ -27,7 +27,7 @@ cd /home/def-marechal/programs/openfold
 python3 ${OF_SCRIPTS}/precompute_alignments_mmseqs.py \
 --threads 72 \
 --hhsearch_binary_path hhsearch \
---pdb70 ${DOWNLOAD_DIR}/mmseqs_dbs/pdb70_220313 \
+--pdb70 ${DOWNLOAD_DIR}/mmseqs_dbs/pdb100_230517 \
 --env_db colabfold_envdb_202108_db \
 ${IN}/${NAME}.fa \
 ${DOWNLOAD_DIR}/mmseqs_dbs \
@@ -45,59 +45,13 @@ ${OUT} \
 align_end=`date +%s`
 align_time=$(((align_end-align_start)/60))
 
-fold_start=`date +%s`
-for model in 1 2 3
-do
-  echo "folding using model $model"
-  python3 run_pretrained_openfold.py \
-  ${IN} \
-  ${DOWNLOAD_DIR}/mmseqs_dbs/pdb_mmcif/mmcif_files \
-  --use_precomputed_alignments ${OUT} \
-  --config_preset "model_${model}_multimer_v3" \
-  --model_device "cuda:0" \
-  --output_dir ${OUT}/${NAME} \
-  --save_outputs
-
-  #/home/def-marechal/programs/Marechal_pipelines/environment/test.openfold.multi/openfold.multi/DTX1_1_DTX2_1/predictions/DTX1_1-DTX2_1_model_1_multimer_v3_output_dict.pkl
-  python ${OF_SCRIPTS}/generate_pae_plddt_plot.py \
-  --input_pkl ${OUT}/${NAME}/predictions/${NAME}_model_${model}_multimer_v3_output_dict.pkl \
-  --output_dir ${OUT}/${NAME}/predictions/ \
-  --basename "${NAME}_model_${model}_multimer_v3_relaxed"
-
-done
-
-convert ${OUT}/${NAME}/predictions/*_pLDDT.png +append ${OUT}/${NAME}/predictions/${NAME}_all_PLDDT.png
-convert ${OUT}/${NAME}/predictions/*_PAE.png  +append ${OUT}/${NAME}/predictions/${NAME}_all_PAE.png
-
-python ${OF_SCRIPTS}/generate_coverage_plot.py \
---input_pkl ${OUT}/${NAME}/${NAME}_model_${model}_multimer_v3_feature_dict.pickle \
---output_dir ${OUT}/${NAME}/predictions/ \
---basename "${NAME}_multimer_v3_relaxed"
-
-fold_end=`date +%s`
-fold_time=$(((fold_end-fold_start)/60))
-
-echo "running AF2multimer-analysis on $outdir"
-# need to create .done.txt file for AF2multimer-analysis
-touch ${OUT}/${NAME}/predictions/${NAME}.done.txt
-mkdir -p ${OUT}/${NAME}/predictions/unrelaxed
-mv ${OUT}/${NAME}/predictions/*unrelaxed.pdb ${OUT}/${NAME}/predictions/unrelaxed/
-python ${AF_ANALYSIS_SCRIPTS}/colabfold_analysis.py ${OUT}/${NAME}/predictions
-
-echo "zipping results"
-cd ${OUT}/${NAME}/predictions
-zip -r ${NAME}.zip * -x "*.pkl"
-mv ${NAME}.zip ${OUT}/
+# output: exp_name\talign time
+# in min
+echo "write search time in /tank/jflucier/run_stats.search.tsv"
+echo -e "${NAME}\t$align_time" >> /tank/jflucier/run_stats.search.tsv
 
 echo "done!"
 
-
-# zip results
-
-
-# output: exp_name\talign time\tfold time
-# in min
-echo -e "${NAME}\t$align_time\t$fold_time" >> /tank/jflucier/run_stats.tsv
 
 
 
