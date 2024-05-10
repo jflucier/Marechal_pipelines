@@ -11,7 +11,7 @@
 set -ex
 
 echo "activating env"
-mamba activate openfold_env
+conda activate openfold_env
 
 export OF_SCRIPTS=$OPENFOLD_SCRIPTS
 export AFM_SCRIPTS=$AF_ANALYSIS_SCRIPTS
@@ -93,5 +93,5 @@ zip -r ${NAME}.zip * -x "*.pkl" "*.pickle"
 echo "write time stats in /tank/jflucier/run_stats.tsv"
 echo -e "${FOLD_NAME}\t$align_time\t$fold_time" >> /tank/jflucier/run_stats.tsv
 
-mamba deactivate
+conda deactivate
 
