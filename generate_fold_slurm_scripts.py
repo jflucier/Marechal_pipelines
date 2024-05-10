@@ -69,7 +69,7 @@ def generate_openfold_script(output_dir, index, db, workdir, fasta_out, account)
     print(f"Generating openfold submission script: {workdir}/submit_openfold.{index}.sh\n")
     with open(os.path.join(script_path, "submit_openfold.tmpl"), 'r') as f:
         src = Template(f.read())
-        result = src.substitute(tmpl_data)
+        result = src.safe_substitute(tmpl_data)
         with open(os.path.join(workdir, f"submit_openfold.{index}.sh"), 'w') as out:
             out.write(result)
 
