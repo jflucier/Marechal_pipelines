@@ -375,9 +375,18 @@ https://git.scicore.unibas.ch/schwede/openstructure/-/raw/7102c63615b64735c49412
 #cd /home/def-marechal/programs
 #git clone https://github.com/walterlab-HMS/AF2multimer-analysis.git
 
+# format pdb100 to cs219
 cstranslate -i /tank/jflucier/mmseqs_dbs/pdb100_a3m -o /tank/jflucier/mmseqs_dbs/pdb100_cs219 -f -x 0.3 -c 4 -I a3m -b
 
-
+# redownload pdb and see alignment is better
+mkdir -p pdb/divided
+mkdir -p pdb/obsolete
+if [ -n "${PDB_AWS_DOWNLOAD}" ]; then
+  aws s3 cp --no-sign-request --recursive s3://pdbsnapshots/20240101/pub/pdb/data/structures/divided/mmCIF/ pdb/divided/
+  aws s3 cp --no-sign-request --recursive s3://pdbsnapshots/20240101/pub/pdb/data/structures/obsolete/mmCIF/ pdb/obsolete/
+fi
+rsync -rlpt -v -z --delete --port=33444 rsync.wwpdb.org::ftp/data/structures/divided/mmCIF/ pdb/divided
+rsync -rlpt -v -z --delete --port=33444 rsync.wwpdb.org::ftp/data/structures/obsolete/mmCIF/ pdb/obsolete
 
 
 

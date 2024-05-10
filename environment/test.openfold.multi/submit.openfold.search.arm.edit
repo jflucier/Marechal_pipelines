@@ -27,7 +27,7 @@ cd /home/def-marechal/programs/openfold
 python3 ${OF_SCRIPTS}/precompute_alignments_mmseqs.py \
 --threads 72 \
 --hhsearch_binary_path hhsearch \
---pdb70 ${DOWNLOAD_DIR}/mmseqs_dbs/pdb100_230517 \
+--pdb70 ${DOWNLOAD_DIR}/mmseqs_dbs/pdb100 \
 --env_db colabfold_envdb_202108_db \
 ${IN}/${NAME}.fa \
 ${DOWNLOAD_DIR}/mmseqs_dbs \
@@ -49,6 +49,34 @@ align_time=$(((align_end-align_start)/60))
 # in min
 echo "write search time in /tank/jflucier/run_stats.search.tsv"
 echo -e "${NAME}\t$align_time" >> /tank/jflucier/run_stats.search.tsv
+
+### trying colabfold alignment
+#python ${OF_SCRIPTS}/colabfold_search.py \
+#--threads 72 \
+#--use-env 1 --use-templates 1 \
+#--db1 uniref30_2302_db \
+#--db2 pdb100_230517 \
+#--db3 colabfold_envdb_202108_db \
+#${IN}/${NAME}.fa \
+#${DOWNLOAD_DIR}/mmseqs_dbs \
+#${OUT}/colabsearch_tests_withtmpl
+#
+## reorganise for msa structure for openfold
+#for a3m in $OUT/*.a3m
+#do
+#  b=$(basename $a3m)
+#  n=${b%.a3m}
+#  mkdir ${OUT}/${n}
+#  mv $a3m ${OUT}/${n}/uniref.a3m
+#done
+#
+#python ${OF_SCRIPTS}/precompute_alignments.py \
+#${IN} \
+#${OUT} \
+#--uniprot_database_path /tank/jflucier/mmseqs_dbs/uniprot/uniprot.fasta \
+#--jackhmmer_binary_path jackhmmer \
+#--cpus_per_task 72
+
 
 echo "done!"
 
