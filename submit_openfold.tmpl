@@ -93,5 +93,5 @@ zip -r ${NAME}.zip * -x "*.pkl" "*.pickle"
 echo "write time stats in /tank/jflucier/run_stats.tsv"
 echo -e "${FOLD_NAME}\t$align_time\t$fold_time" >> /tank/jflucier/run_stats.tsv
 
-
+mamba deactivate
 
