@@ -78,7 +78,7 @@ def generate_openfold_script(output_dir, index, db, workdir, fasta_out, account)
 
     with open(os.path.join(output_dir, "submit_openfold_jobs.sh"), 'a') as o:
         # o.write(f"sbatch {workdir}/submit_openfold_jobs.{index}.sh\n")
-        o.write(f"sh {workdir}/submit_openfold_jobs.{index}.sh\n")
+        o.write(f"sh {workdir}/submit_openfold.{index}.sh\n")
 
 def generate_colabfold_scripts(output_dir, index, db, workdir, fasta_out, account):
     generate_colabfold_search_script(output_dir, index, db, workdir, fasta_out, account)
