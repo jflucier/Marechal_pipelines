@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-FOLD_NAME=OF_$FOLD_FOLD_NAME
+#SBATCH --job-name=$FOLD_NAME
 #SBATCH -D $OPENFOLD_SCRIPTS
 #SBATCH -o $OUT_DIR/slurm-%A_%a.out
 #SBATCH --account=$ACCOUNT
