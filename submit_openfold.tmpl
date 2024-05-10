@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=OF_$FOLD_NAME
+#SBATCH --job-name=$FOLD_NAME
 #SBATCH -D $OPENFOLD_SCRIPTS
 #SBATCH -o $OUT_DIR/slurm-%A_%a.out
 #SBATCH --account=$ACCOUNT
@@ -13,30 +13,26 @@ set -ex
 echo "activating env"
 mamba activate openfold_env
 
-export OF_SCRIPTS=$OPENFOLD_SCRIPTS
-export IN_DIR=$IN_DIR
-export OUT=$OUT_DIR
-export DB_DIR=$OPENFOLD_DB
-export NAME=$FOLD_NAME
+cd $OPENFOLD_SCRIPTS/..
 
 align_start=`date +%s`
 echo "running colabfold on $IN_DIR"
-cd ${OF_SCRIPTS}/..
-python3 ${OF_SCRIPTS}/precompute_alignments_mmseqs.py \
+cd $OPENFOLD_SCRIPTS/..
+python3 $OPENFOLD_SCRIPTS/precompute_alignments_mmseqs.py \
 --threads 72 \
 --hhsearch_binary_path hhsearch \
---pdb70 ${DB_DIR}/pdb100 \
+--pdb70 $OPENFOLD_DB/pdb100 \
 --env_db colabfold_envdb_202108_db \
-${IN_DIR}/${NAME}.fa \
-${DB_DIR} \
+$IN_DIR/$FOLD_NAME.fa \
+$OPENFOLD_DB \
 uniref30_2302_db \
-${OUT} \
+$OUT_DIR \
 mmseqs
 
-python ${OF_SCRIPTS}/precompute_alignments.py \
-${IN_DIR} \
-${OUT} \
---uniprot_database_path ${DB_DIR}/uniprot/uniprot.fasta \
+python $OPENFOLD_SCRIPTS/precompute_alignments.py \
+$IN_DIR \
+$OUT_DIR \
+--uniprot_database_path $OPENFOLD_DB/uniprot/uniprot.fasta \
 --jackhmmer_binary_path jackhmmer \
 --cpus_per_task 72
 
@@ -48,47 +44,48 @@ for model in 1 2 3
 do
   echo "folding using model $model"
   python3 run_pretrained_openfold.py \
-  ${IN_DIR} \
-  ${DB_DIR}/pdb_mmcif/mmcif_files \
-  --use_precomputed_alignments ${OUT} \
+  $IN_DIR \
+  $OPENFOLD_DB/pdb_mmcif/mmcif_files \
+  --use_precomputed_alignments $OUT_DIR \
   --config_preset "model_${model}_multimer_v3" \
   --model_device "cuda:0" \
-  --output_dir ${OUT} \
+  --output_dir $OUT_DIR \
   --save_outputs
 
   #/home/def-marechal/programs/Marechal_pipelines/environment/test.openfold.multi/openfold.multi/DTX1_1_DTX2_1/predictions/DTX1_1-DTX2_1_model_1_multimer_v3_output_dict.pkl
-  python ${OF_SCRIPTS}/generate_pae_plddt_plot.py \
-  --input_pkl ${OUT}/predictions/${NAME}_model_${model}_multimer_v3_output_dict.pkl \
-  --output_dir ${OUT} \
-  --basename "model_${model}"
+  python $OPENFOLD_SCRIPTS/generate_pae_plddt_plot.py \
+  --input_pkl $OUT_DIR/predictions/$FOLD_NAME_model_${model}_multimer_v3_output_dict.pkl \
+  --output_dir $OUT_DIR \
+  --basename "$FOLD_NAME_model_${model}_multimer_v3_relaxed"
 
 done
 
-convert ${OUT}/*_pLDDT.png +append ${OUT}/${NAME}_all_PLDDT.png
-convert ${OUT}/*_PAE.png  +append ${OUT}/${NAME}_all_PAE.png
+convert $OUT_DIR/*_pLDDT.png +append $OUT_DIR/$FOLD_NAME_all_PLDDT.png
+convert $OUT_DIR/*_PAE.png  +append $OUT_DIR/$FOLD_NAME_all_PAE.png
 
-python ${OF_SCRIPTS}/generate_coverage_plot.py \
---input_pkl ${OUT}/${NAME}_model_${model}_multimer_v3_feature_dict.pickle \
---output_dir ${OUT} \
---basename "model_${model}"
+python $OPENFOLD_SCRIPTS/generate_coverage_plot.py \
+--input_pkl $OUT_DIR/$FOLD_NAME_model_${model}_multimer_v3_feature_dict.pickle \
+--output_dir $OUT_DIR \
+--base "$FOLD_NAME_multimer_v3_relaxed"
 
 fold_end=`date +%s`
 fold_time=$(((fold_end-fold_start)/60))
 
 echo "running AF2multimer-analysis on $outdir"
-mkdir -p $outdir/unrelaxed
-mv $outdir/*unrelaxed_* $outdir/unrelaxed/
-python $script_path/AF2multimer-analysis/colabfold_analysis.py $outdir
+# need to create .done.txt file for AF2multimer-analysis
+touch $OUT_DIR/predictions/$FOLD_NAME.done.txt
+mkdir -p $OUT_DIR/predictions/unrelaxed
+mv $OUT_DIR/predictions/*unrelaxed.pdb $OUT_DIR/predictions/unrelaxed/
+python ${AF_ANALYSIS_SCRIPTS}/colabfold_analysis.py $OUT_DIR/predictions
 
 echo "zipping results"
-cd $outdir/../
-zip -r $job_name.zip $job_name/*
+cd $OUT_DIR/..
+zip -r $FOLD_NAME.zip * -x "*.pkl" "*.pickle"
 
 
-
-# output: exp_name\talign time\tfold time
+# output: exp_FOLD_NAME\talign time\tfold time
 # in min
-echo -e "${NAME}\t$align_time\t$fold_time" >> /tank/jflucier/run_stats.tsv
+echo -e "$FOLD_NAME\t$align_time\t$fold_time" >> /tank/jflucier/run_stats.tsv
 
 
 

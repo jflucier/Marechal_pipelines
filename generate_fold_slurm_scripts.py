@@ -59,6 +59,7 @@ def generate_openfold_script(output_dir, index, db, workdir, fasta_out, account)
     tmpl_data = {
         'FOLD_NAME': f"{index}",
         'OPENFOLD_SCRIPTS': "/home/def-marechal/programs/openfold/scripts",
+        'AF_ANALYSIS_SCRIPTS': "/home/def-marechal/programs/Marechal_pipelines/AF2multimer-analysis",
         'OPENFOLD_DB': db,
         'IN_DIR': f"{workdir}",
         'OUT_DIR': f"{workdir}",
