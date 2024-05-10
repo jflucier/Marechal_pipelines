@@ -20,6 +20,9 @@ def setup_fold(fold_engine, foldsheet, output_dir, account, db):
     if os.path.exists(os.path.join(output_dir, "02_submit_all_colab_fold_jobs.sh")):
         os.remove(os.path.join(output_dir, "02_submit_all_colab_fold_jobs.sh"))
 
+    if os.path.exists(os.path.join(output_dir, "submit_openfold_jobs.sh")):
+        os.remove(os.path.join(output_dir, "submit_openfold_jobs.sh"))
+
     for index, row in folds.iterrows():
         # Path
         workdir = os.path.join(output_dir, index)
@@ -51,7 +54,7 @@ def setup_fold(fold_engine, foldsheet, output_dir, account, db):
         print(f"\nMake sure Step 1 completes successfully before running Step2.")
     else:
         print(f"\nPlease submit jobs using fopllowing command:")
-        print(f"sh {output_dir}/01_submit_all_openfold_jobs.sh")
+        print(f"sh {output_dir}/submit_openfold_jobs.sh")
 
 
 def generate_openfold_script(output_dir, index, db, workdir, fasta_out, account):
