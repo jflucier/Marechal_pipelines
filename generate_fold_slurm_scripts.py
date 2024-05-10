@@ -36,7 +36,10 @@ def setup_fold(fold_engine, foldsheet, output_dir, account, db):
         # generate fasta
         fasta_out = os.path.join(workdir, f"{index}.fa")
         print(f"generating fasta: {fasta_out}")
-        generate_fasta(fasta_out, row)
+        if fold_engine == "colabfold":
+            generate_fasta_colabfold(fasta_out, row)
+        else:
+            generate_fasta_openfold(fasta_out, row)
 
         # if pdb is provided, generate pdb dir struct and download
         generate_pdb(workdir, row)
@@ -79,6 +82,7 @@ def generate_openfold_script(output_dir, index, db, workdir, fasta_out, account)
     with open(os.path.join(output_dir, "submit_openfold_jobs.sh"), 'a') as o:
         # o.write(f"sbatch {workdir}/submit_openfold_jobs.{index}.sh\n")
         o.write(f"sh {workdir}/submit_openfold.{index}.sh\n")
+
 
 def generate_colabfold_scripts(output_dir, index, db, workdir, fasta_out, account):
     generate_colabfold_search_script(output_dir, index, db, workdir, fasta_out, account)
@@ -166,7 +170,7 @@ def generate_pdb(wd, row):
         prot_nbr = prot_nbr + 1
 
 
-def generate_fasta(fa_out, row):
+def generate_fasta_colabfold(fa_out, row):
     prot_nbr = 1
     fa_header = ""
     fa_seq = []
@@ -184,6 +188,27 @@ def generate_fasta(fa_out, row):
     with open(fa_out, 'w') as f:
         f.write(f">{fa_header}\n")
         f.write(f"{seq}\n")
+
+
+def generate_fasta_openfold(fa_out, row):
+    prot_nbr = 1
+    fa_header = []
+    fa_seq = []
+    while f"protein{prot_nbr}_name" in row.index:
+        if not pd.isna(row[f"protein{prot_nbr}_name"]):
+            p_name = row[f"protein{prot_nbr}_name"]
+            p_nbr = int(row[f"protein{prot_nbr}_nbr"])
+            p_seq = row[f"protein{prot_nbr}_seq"]
+            for x in range(1, p_nbr + 1):
+                fa_header.extend([f"{p_name}_{x}"])
+
+            fa_seq.extend([p_seq] * p_nbr)
+        prot_nbr = prot_nbr + 1
+
+    with open(fa_out, 'w') as f:
+        for h, s in zip(fa_header, fa_seq):
+            f.write(f">{h}\n")
+            f.write(f"{s}\n")
 
 
 if __name__ == '__main__':
