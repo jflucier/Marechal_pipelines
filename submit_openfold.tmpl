@@ -22,7 +22,7 @@ export DB=$OPENFOLD_DB
 export NAME=$FOLD_NAME
 
 align_start=`date +%s`
-echo "running colabfold on $IN_DIR"
+echo "running mmseqs alignment on ${FA_DIR}"
 cd ${OF_SCRIPTS}/..
 python3 ${OF_SCRIPTS}/precompute_alignments_mmseqs.py \
 --threads 72 \
@@ -35,6 +35,7 @@ uniref30_2302_db \
 ${OUT} \
 mmseqs
 
+echo "running uniprot alignment on ${FA_DIR}"
 python ${OF_SCRIPTS}/precompute_alignments.py \
 ${FA_DIR} \
 ${OUT} \
@@ -58,7 +59,7 @@ do
   --output_dir ${OUT} \
   --save_outputs
 
-  #/home/def-marechal/programs/Marechal_pipelines/environment/test.openfold.multi/openfold.multi/DTX1_1_DTX2_1/predictions/DTX1_1-DTX2_1_model_1_multimer_v3_output_dict.pkl
+  echo "generate pae plddt plots for model $model"
   python ${OF_SCRIPTS}/generate_pae_plddt_plot.py \
   --input_pkl ${OUT}/predictions/${NAME}_model_${model}_multimer_v3_output_dict.pkl \
   --output_dir ${OUT}/predictions/ \
@@ -66,9 +67,11 @@ do
 
 done
 
+echo "merging pae plddt plots"
 convert ${OUT}/predictions/*_pLDDT.png +append ${OUT}/predictions/${NAME}_all_PLDDT.png
 convert ${OUT}/predictions/*_PAE.png  +append ${OUT}/predictions/${NAME}_all_PAE.png
 
+echo "generating coverage plots"
 python ${OF_SCRIPTS}/generate_coverage_plot.py \
 --input_pkl ${OUT}/${NAME}_model_${model}_multimer_v3_feature_dict.pickle \
 --output_dir ${OUT}/predictions/ \
@@ -78,6 +81,7 @@ fold_end=`date +%s`
 fold_time=$(((fold_end-fold_start)/60))
 
 echo "running AF2multimer-analysis on ${OUT}/predictions/"
+touch ${OUT}/predictions/${NAME}.done.txt
 mkdir -p ${OUT}/predictions/unrelaxed
 mv ${OUT}/predictions/*unrelaxed_* ${OUT}/predictions/unrelaxed/
 python ${AFM_SCRIPTS}/AF2multimer-analysis/colabfold_analysis.py ${OUT}/predictions
