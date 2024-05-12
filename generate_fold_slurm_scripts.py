@@ -48,7 +48,7 @@ def setup_fold(fold_engine, foldsheet, output_dir, account, db):
         if fold_engine == "colabfold":
             generate_colabfold_scripts(output_dir, index, db, workdir, fasta_out, account)
         else:
-            generate_openfold_script(output_dir, index, db, workdir, fasta_out, account)
+            generate_openfold_script(output_dir, row, db, workdir, fasta_out, account)
 
     if fold_engine == "colabfold":
         print(f"\nPlease submit jobs in 2 steps:")
@@ -60,7 +60,9 @@ def setup_fold(fold_engine, foldsheet, output_dir, account, db):
         print(f"sh {output_dir}/submit_openfold_jobs.sh")
 
 
-def generate_openfold_script(output_dir, index, db, workdir, fasta_out, account):
+def generate_openfold_script(output_dir, row, db, workdir, fasta_out, account):
+    index = row.index
+    foldname = generate_foldname(row)
     script_path = os.path.dirname(__file__)
     tmpl_data = {
         'FOLD_NAME': f"{index}",
@@ -72,17 +74,32 @@ def generate_openfold_script(output_dir, index, db, workdir, fasta_out, account)
         'ACCOUNT': account
     }
 
-    print(f"Generating openfold submission script: {workdir}/submit_openfold.{index}.sh\n")
+    print(f"Generating openfold submission script: {workdir}/submit_openfold.{foldname}.sh\n")
     with open(os.path.join(script_path, "submit_openfold.tmpl"), 'r') as f:
         src = Template(f.read())
         result = src.safe_substitute(tmpl_data)
-        with open(os.path.join(workdir, f"submit_openfold.{index}.sh"), 'w') as out:
+        with open(os.path.join(workdir, f"submit_openfold.{foldname}.sh"), 'w') as out:
             out.write(result)
 
     with open(os.path.join(output_dir, "submit_openfold_jobs.sh"), 'a') as o:
         # o.write(f"sbatch {workdir}/submit_openfold_jobs.{index}.sh\n")
-        o.write(f"sh {workdir}/submit_openfold.{index}.sh\n")
+        o.write(f"sh {workdir}/submit_openfold.{foldname}.sh\n")
 
+
+def generate_foldname(row):
+    prot_nbr = 1
+    fa_header = []
+    while f"protein{prot_nbr}_name" in row.index:
+        if not pd.isna(row[f"protein{prot_nbr}_name"]):
+            p_name = row[f"protein{prot_nbr}_name"]
+            p_nbr = int(row[f"protein{prot_nbr}_nbr"])
+            for x in range(1, p_nbr + 1):
+                fa_header.extend([f"{p_name}_{x}"])
+
+        prot_nbr = prot_nbr + 1
+
+    foldname = "-".join(fa_header)
+    return foldname
 
 def generate_colabfold_scripts(output_dir, index, db, workdir, fasta_out, account):
     generate_colabfold_search_script(output_dir, index, db, workdir, fasta_out, account)
