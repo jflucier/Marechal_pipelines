@@ -33,12 +33,15 @@ def setup_fold(fold_engine, foldsheet, output_dir, account, db):
             sys.exit(0)
 
         print(f"Generating fold job {index} script in {workdir}")
-        # generate fasta
-        fasta_out = os.path.join(workdir, f"{index}.fa")
-        print(f"generating fasta: {fasta_out}")
         if fold_engine == "colabfold":
+            # generate fasta
+            fasta_out = os.path.join(workdir, f"{index}.fa")
+            print(f"generating fasta: {fasta_out}")
             generate_fasta_colabfold(fasta_out, row)
         else:
+            foldname = generate_foldname(row)
+            fasta_out = os.path.join(workdir, f"{foldname}.fa")
+            print(f"generating fasta: {fasta_out}")
             generate_fasta_openfold(fasta_out, row)
 
         # if pdb is provided, generate pdb dir struct and download
