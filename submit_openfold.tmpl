@@ -62,7 +62,7 @@ do
   python ${OF_SCRIPTS}/generate_pae_plddt_plot.py \
   --input_pkl ${OUT}/predictions/${NAME}_model_${model}_multimer_v3_output_dict.pkl \
   --output_dir ${OUT}/predictions/ \
-  --baseFOLD_NAME "model_${model}"
+  --basename "${NAME}_model_${model}_multimer_v3_relaxed"
 
 done
 
