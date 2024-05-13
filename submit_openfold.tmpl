@@ -83,8 +83,8 @@ fold_time=$(((fold_end-fold_start)/60))
 echo "running AF2multimer-analysis on ${OUT}/predictions/"
 touch ${OUT}/predictions/${NAME}.done.txt
 mkdir -p ${OUT}/predictions/unrelaxed
-mv ${OUT}/predictions/*unrelaxed_* ${OUT}/predictions/unrelaxed/
-python ${AFM_SCRIPTS}/AF2multimer-analysis/colabfold_analysis.py ${OUT}/predictions
+mv ${OUT}/predictions/*unrelaxed.pdb ${OUT}/predictions/unrelaxed/
+python ${AFM_SCRIPTS}/colabfold_analysis.py ${OUT}/predictions
 
 echo "zipping results"
 cd ${OUT}/../
