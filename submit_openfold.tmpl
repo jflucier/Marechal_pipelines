@@ -59,16 +59,16 @@ do
   --output_dir ${OUT} \
   --save_outputs
 
-  echo "generate pae plddt plots for model $model"
-  python ${OF_SCRIPTS}/generate_pae_plddt_plot.py \
-  --input_pkl ${OUT}/predictions/${NAME}_model_${model}_multimer_v3_output_dict.pkl \
-  --output_dir ${OUT}/predictions/ \
-  --basename "${NAME}_model_${model}_multimer_v3_relaxed"
+#  echo "generate pae plddt plots for model $model"
+#  python ${OF_SCRIPTS}/generate_pae_plddt_plot.py \
+#  --input_pkl ${OUT}/predictions/${NAME}_model_${model}_multimer_v3_output_dict.pkl \
+#  --output_dir ${OUT}/predictions/ \
+#  --basename "${NAME}_model_${model}_multimer_v3_relaxed"
 
 done
 
 echo "merging pae plddt plots"
-convert ${OUT}/predictions/*_pLDDT.png +append ${OUT}/predictions/${NAME}_all_PLDDT.png
+#convert ${OUT}/predictions/*_pLDDT.png +append ${OUT}/predictions/${NAME}_all_PLDDT.png
 convert ${OUT}/predictions/*_PAE.png  +append ${OUT}/predictions/${NAME}_all_PAE.png
 
 echo "generating coverage plots"
@@ -76,6 +76,15 @@ python ${OF_SCRIPTS}/generate_coverage_plot.py \
 --input_pkl ${OUT}/${NAME}_model_${model}_multimer_v3_feature_dict.pickle \
 --output_dir ${OUT}/predictions/ \
 --basename "${NAME}_multimer_v3_relaxed"
+
+echo "generating PAE, plDDT plots and JSON files"
+python ${OF_SCRIPTS}/generate_pae_plddt_plot.py \
+--fasta \
+--model1_pkl ${OUT}/${NAME}_model_1_multimer_v3_feature_dict.pickle \
+--model2_pkl ${OUT}/${NAME}_model_2_multimer_v3_feature_dict.pickle \
+--model3_pkl ${OUT}/${NAME}_model_3_multimer_v3_feature_dict.pickle \
+--output_dir ${OUT}/predictions/ \
+--basename "${NAME}"
 
 fold_end=`date +%s`
 fold_time=$(((fold_end-fold_start)/60))
