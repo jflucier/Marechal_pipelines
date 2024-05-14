@@ -99,9 +99,10 @@ python ${OF_SCRIPTS}/generate_pae_plddt_plot.py \
 
 
 echo "zipping results"
-cd ${OUT}/../
+CURRENT_PATH=$PWD
+cd ${OUT}
 zip -r ${NAME}.zip * -x "*.pkl" "*.pickle"
-
+cd ${CURRENT_PATH}
 
 
 # output: exp_FOLD_NAME\talign time\tfold time
