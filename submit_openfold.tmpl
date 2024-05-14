@@ -77,15 +77,6 @@ python ${OF_SCRIPTS}/generate_coverage_plot.py \
 --output_dir ${OUT}/predictions/ \
 --basename "${NAME}_multimer_v3_relaxed"
 
-echo "generating PAE, plDDT plots and JSON files"
-python ${OF_SCRIPTS}/generate_pae_plddt_plot.py \
---fasta \
---model1_pkl ${OUT}/${NAME}_model_1_multimer_v3_feature_dict.pickle \
---model2_pkl ${OUT}/${NAME}_model_2_multimer_v3_feature_dict.pickle \
---model3_pkl ${OUT}/${NAME}_model_3_multimer_v3_feature_dict.pickle \
---output_dir ${OUT}/predictions/ \
---basename "${NAME}"
-
 fold_end=`date +%s`
 fold_time=$(((fold_end-fold_start)/60))
 
@@ -94,6 +85,17 @@ touch ${OUT}/predictions/${NAME}.done.txt
 mkdir -p ${OUT}/predictions/unrelaxed
 mv ${OUT}/predictions/*unrelaxed.pdb ${OUT}/predictions/unrelaxed/
 python ${AFM_SCRIPTS}/colabfold_analysis.py ${OUT}/predictions
+
+echo "generating PAE, plDDT plots and JSON files"
+python ${OF_SCRIPTS}/generate_pae_plddt_plot.py \
+--fasta ${FA_DIR}/${NAME}.fa \
+--model1_pkl ${OUT}/${NAME}_model_1_multimer_v3_feature_dict.pickle \
+--model2_pkl ${OUT}/${NAME}_model_2_multimer_v3_feature_dict.pickle \
+--model3_pkl ${OUT}/${NAME}_model_3_multimer_v3_feature_dict.pickle \
+--output_dir ${OUT}/predictions/ \
+--basename "${NAME}" \
+--interface ${OUT}/predictions/predictions_analysis/interfaces.csv
+
 
 echo "zipping results"
 cd ${OUT}/../
