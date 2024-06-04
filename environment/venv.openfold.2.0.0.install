@@ -388,8 +388,97 @@ fi
 rsync -rlpt -v -z --delete --port=33444 rsync.wwpdb.org::ftp/data/structures/divided/mmCIF/ pdb/divided
 rsync -rlpt -v -z --delete --port=33444 rsync.wwpdb.org::ftp/data/structures/obsolete/mmCIF/ pdb/obsolete
 
+## bug when using --long_sequence_inference
+## No such file or directory: '/home/def-marechal/programs/openfold/cutlass/CHANGELOG.md'
+## install cutlass
+mamba activate openfold_env
+cd /home/def-marechal/programs
+git clone https://github.com/NVIDIA/cutlass.git
+cd cutlass
+mkdir build && cd build
+export CUDA_INSTALL_PATH="/usr/local/cuda-11.8"
+export CUDACXX=${CUDA_INSTALL_PATH}/bin/nvcc
+#export PATH=path_to_nvcc_bin_dir/:$PATH
+#export LD_LIBRARY_PATH=path_to_nvcc_include_dir:$LD_LIBRARY_PATH
+
+export USE_CUDA=1
+export USE_CUDNN=1
+export USE_MKLDNN=1
+export USE_MKLDNN_ACL=1
+export USE_FBGEMM=OFF
+export DUSE_MPI=OFF
+export USE_OPENMP=1
+export TORCH_CUDA_ARCH_LIST=9.0
+export CUDA_HOME="/usr/local/cuda-11.8"
+export CUDA_NVCC_EXECUTABLE="/usr/local/cuda-11.8/bin/nvcc"
+export CUDNN_LIBRARY="/usr/local/cudnn-linux-sbsa-8.9.7.29_cuda11-archive"
+export CUDNN_INCLUDE_PATH="/usr/local/cudnn-linux-sbsa-8.9.7.29_cuda11-archive/include"
+export CUDNN_ROOT="/usr/local/cudnn-linux-sbsa-8.9.7.29_cuda11-archive"
+export ACL_ROOT_DIR="/home/def-marechal/programs/acl"
+export ACL_INCLUDE_DIR="/home/def-marechal/programs/acl/build"
+export ACL_LIBRARY="/home/def-marechal/programs/acl/build"
+export LAPACK_LIBRARIES="/opt/nvidia/hpc_sdk/Linux_aarch64/24.1/compilers/lib/liblapack.so"
+export BLAS_LIBRARIES="/opt/nvidia/hpc_sdk/Linux_aarch64/24.1/compilers/lib/libblas.so"
+export BLAS_INCLUDE_DIR="/opt/nvidia/hpc_sdk/Linux_aarch64/24.1/compilers/include"
+export LD_LIBRARY_PATH="/usr/local/cuda-11.8/targets/sbsa-linux/lib:/home/def-marechal/programs/pytorch/torch/lib:/home/def-marechal/programs/pytorch/build/lib:/home/def-marechal/programs/acl/build":$LD_LIBRARY_PATH
+
+cd .. && rm -fr build
+mkdir build && cd build
+#cmake .. -DCUTLASS_NVCC_ARCHS=90a
+cmake .. -DCUTLASS_NVCC_ARCHS=90
+make cutlass_profiler -j
+make test_unit -j
+
+# edit /home/def-marechal/programs/conda/envs/openfold_env/lib/python3.10/site-packages/torch/utils/cpp_extension.py
+# to add Hopper (sm90) support: https://github.com/pytorch/pytorch/pull/87736/commits/d523b461b682292f102b2f666bca8bf296e649d0
 
 
+
+
+
+
+export USE_CUDA=ON
+export USE_CUDNN=ON
+export USE_ROCM=0
+export PATH="/usr/local/cuda-11.8/bin":$PATH
+export PATH="/usr/local/cuda-11.8/nvvm/bin":$PATH
+export CUDA_HOME="/usr/local/cuda-11.8"
+export CUDA_ROOT="/usr/local/cuda-11.8"
+export CUDA_PATH="/usr/local/cuda-11.8"
+export CUDNN_LIBRARY_PATH=/usr/local/cudnn-linux-sbsa-8.9.7.29_cuda11-archive/lib
+export CUDNN_INCLUDE_PATH=/usr/local/cudnn-linux-sbsa-8.9.7.29_cuda11-archive/include
+
+export LD_LIBRARY_PATH="/usr/local/cuda-11.8/lib64":$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH="/usr/local/cuda-11.8/nvvm/lib64":$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH="/home/local/cuda-11.8/targets/sbsa-linux/lib":$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH="/opt/nvidia/hpc_sdk/Linux_aarch64/24.1/compilers/lib":$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH="/usr/local/cudnn-linux-sbsa-8.9.7.29_cuda11-archive/lib":$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH="/home/def-marechal/programs/nccl_2.16.5-1+cuda11.8_aarch64/lib":$LD_LIBRARY_PATH
+export CMAKE_PREFIX_PATH=${CONDA_PREFIX:-"$(dirname $(which conda))/../"}
+export CMAKE_PREFIX_PATH=/home/def-marechal/programs/acl/build:$CMAKE_PREFIX_PATH
+
+export USE_CUDA=1
+export USE_CUDNN=1
+export USE_MKLDNN=1
+export USE_MKLDNN_ACL=1
+export USE_FBGEMM=OFF
+export DUSE_MPI=OFF
+export USE_OPENMP=1
+export TORCH_CUDA_ARCH_LIST=9.0
+export CUDA_HOME="/usr/local/cuda-11.8"
+export CUDA_NVCC_EXECUTABLE="/usr/local/cuda-11.8/bin/nvcc"
+export CUDNN_LIBRARY="/usr/local/cudnn-linux-sbsa-8.9.7.29_cuda11-archive"
+export CUDNN_INCLUDE_PATH="/usr/local/cudnn-linux-sbsa-8.9.7.29_cuda11-archive/include"
+export CUDNN_ROOT="/usr/local/cudnn-linux-sbsa-8.9.7.29_cuda11-archive"
+export ACL_ROOT_DIR="/home/def-marechal/programs/acl"
+export ACL_INCLUDE_DIR="/home/def-marechal/programs/acl/build"
+export ACL_LIBRARY="/home/def-marechal/programs/acl/build"
+export LAPACK_LIBRARIES="/opt/nvidia/hpc_sdk/Linux_aarch64/24.1/compilers/lib/liblapack.so"
+export BLAS_LIBRARIES="/opt/nvidia/hpc_sdk/Linux_aarch64/24.1/compilers/lib/libblas.so"
+export BLAS_INCLUDE_DIR="/opt/nvidia/hpc_sdk/Linux_aarch64/24.1/compilers/include"
+export LD_LIBRARY_PATH="/usr/local/cuda-11.8/targets/sbsa-linux/lib:/home/def-marechal/programs/pytorch/torch/lib:/home/def-marechal/programs/pytorch/build/lib:/home/def-marechal/programs/acl/build":$LD_LIBRARY_PATH
+
+#export CMAKE_INSTALL_PREFIX=/home/def-marechal/programs/conda/envs/openfold_env
 
 
 
