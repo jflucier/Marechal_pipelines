@@ -166,4 +166,5 @@ example/RFWD3.2_PCNA.3
 *.old
 *.bak
 .idea/
-
+/example/tiny/.drypipe/
+/example/tiny/output/
