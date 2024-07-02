@@ -168,7 +168,7 @@ def dag_gen(dsl):
             
             set -e
             
-            module load gcc/9.3.0 cuda/11.4 openmpi/4.0.3 openmm/8.0.0 mmseqs2/14-7e284 hh-suite/3.3.0 hmmer/3.2.1
+            module load StdEnv/2020 gcc/9.3.0 cuda/11.4 openmpi/4.0.3 openmm/8.0.0 mmseqs2/14-7e284 hh-suite/3.3.0 hmmer/3.2.1
                         
             source $TASK_VENV/bin/activate
             
@@ -177,13 +177,13 @@ def dag_gen(dsl):
             export DOWNLOAD_DIR=$db
             
             echo "running colabfold search"
-            colabfold_search \
-            --threads 8 --use-env 1 --db-load-mode 0 \
-            --mmseqs mmseqs \
-            --db1 ${DOWNLOAD_DIR}/uniref30_2302_db \
-            --db2 ${DOWNLOAD_DIR}/pdb100_230517 \
-            --db3 ${DOWNLOAD_DIR}/colabfold_envdb_202108_db \
-            ${IN} ${DOWNLOAD_DIR} ${OUT}
+            colabfold_search \\
+              --threads 8 --use-env 1 --db-load-mode 0 \\
+              --mmseqs mmseqs \\
+              --db1 ${DOWNLOAD_DIR}/uniref30_2302_db \\
+              --db2 ${DOWNLOAD_DIR}/pdb100_230517 \\
+              --db3 ${DOWNLOAD_DIR}/colabfold_envdb_202108_db \\
+              ${IN} ${DOWNLOAD_DIR} ${OUT}
             
             echo "done"
 
@@ -216,7 +216,7 @@ def dag_gen(dsl):
     
                 set -e
     
-                module load gcc/9.3.0 cuda/11.4 openmpi/4.0.3 openmm/8.0.0 mmseqs2/14-7e284 hh-suite/3.3.0 hmmer/3.2.1
+                module load StdEnv/2020 gcc/9.3.0 cuda/11.4 openmpi/4.0.3 openmm/8.0.0 mmseqs2/14-7e284 hh-suite/3.3.0 hmmer/3.2.1
     
                 source $TASK_VENV/bin/activate
                 
@@ -230,14 +230,14 @@ def dag_gen(dsl):
                 export DOWNLOAD_DIR=$db
     
                 echo "running colabfold fold"
-                colabfold_batch \
-                --use-gpu-relax --amber --num-relax 3 \
-                --num-models 3 \
-                --num-recycle 30 --recycle-early-stop-tolerance 0.5 \
-                --model-type auto \
-                --data $DOWNLOAD_DIR \
-                ${IN} \
-                ${OUT}
+                colabfold_batch \\
+                  --use-gpu-relax --amber --num-relax 3 \\
+                  --num-models 3 \\
+                  --num-recycle 30 --recycle-early-stop-tolerance 0.5 \\
+                  --model-type auto \\
+                  --data $DOWNLOAD_DIR \\
+                  ${IN} \\
+                  ${OUT}
                 
                 echo "running AF2multimer-analysis"
                 mkdir -p $__task_output_dir/unrelaxed
