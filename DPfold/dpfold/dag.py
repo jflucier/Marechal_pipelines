@@ -40,6 +40,8 @@ this_python_root = Path(__file__).parent.parent
 def narval_task_conf():
     remote_login = os.environ["REMOTE_LOGIN"]
 
+    remote_pipeline_base_dir = f"{remote_base_dir()}/pipelines-work-dir"
+
     return TaskConf(
         executer_type="slurm",
         slurm_account=os.environ["SLURM_ACCOUNT"],
@@ -48,10 +50,10 @@ def narval_task_conf():
             "MUGQIC_INSTALL_HOME": "/cvmfs/soft.mugqic/CentOS6",
             "DRYPIPE_TASK_DEBUG": "True",
             "PYTHONPATH":
-                f"{remote_base_dir()}/pipelines-work-dir/tiny/external-file-deps{this_python_root}",
-            "TASK_VENV": f"{remote_base_dir()}/programs/colabfold_af2.3.2_env/bin/activate"
+                f"{remote_pipeline_base_dir}/tiny/external-file-deps{this_python_root}",
+            "TASK_VENV": f"{remote_base_dir()}/programs/colabfold_af2.3.2_env"
         },
-        ssh_remote_dest=f"{remote_login}:{remote_base_dir()}/pipelines-work-dir",
+        ssh_remote_dest=f"{remote_login}:{remote_pipeline_base_dir}",
         # implicit:
         python_bin=f"{remote_base_dir()}/programs/colabfold_af2.3.2_env/bin/python3"
     )
