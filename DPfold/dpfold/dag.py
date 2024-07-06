@@ -74,23 +74,23 @@ def narval_task_conf():
 def big_gpu_task_conf():
 
     remote_pipeline_base_dir = "/tank/maxl"
-
+    programs_base_dir = "/home/def-marechal/programs"
 
     return TaskConf(
         executer_type="slurm",
         slurm_account=None,
         sbatch_options=[
-            "--time=24:00:00 --gpus-per-node=1 --mem=400G",
+            "--time=24:00:00 --gpus-per-node=1 --cpus-per-task=64 --mem=440G",
             "--nodelist=gh1301  -p c-gh"
         ],
         extra_env={
             "DRYPIPE_TASK_DEBUG": "True",
             "PYTHONPATH": f"$__pipeline_instance_dir/external-file-deps{this_python_root}",
-            "python_bin": "/home/def-marechal/programs/conda/envs/openfold_env/bin/python3",
+            "python_bin": f"{programs_base_dir}/conda/envs/openfold_env/bin/python3",
             "remote_base_dir": "/tank/maxl",
             "collabfold_db": "/tank/jflucier/mmseqs_dbs",
-            "OPENFOLD_HOME": "/home/def-marechal/programs/openfold",
-            "PATH": "/home/def-marechal/programs/MMseqs2/build/bin:$PATH"
+            "OPENFOLD_HOME": f"{programs_base_dir}/openfold",
+            "PATH": f"{programs_base_dir}/conda/envs/openfold_env/bin:{programs_base_dir}/MMseqs2/build/bin:$PATH"
         },
         ssh_remote_dest=f"gh1301:{remote_pipeline_base_dir}",
         python_bin="/home/def-marechal/programs/conda/envs/openfold_env/bin/python3"
@@ -237,22 +237,22 @@ def dag_gen(dsl):
         def fold_model(model):
             return f"""
               #!/usr/bin/bash                        
-              set -e
+              set -ex
                           
               echo "folding using model {model}"
               cd $OPENFOLD_HOME
-              
-              $python_bin $OPENFOLD_HOME/run_pretrained_openfold.py \\
+                            
+              $python_bin -u $OPENFOLD_HOME/run_pretrained_openfold.py \\
                 $__task_output_dir \\
                 $collabfold_db/pdb_mmcif/mmcif_files \\
                 --use_precomputed_alignments $__task_output_dir \\
-                --config_preset "model_$model_multimer_v3" \\
+                --config_preset "model_{model}_multimer_v3" \\
                 --model_device "cuda:0" \\
                 --output_dir $__task_output_dir \\
                 --save_outputs
             
-              echo "generate JSON for model $model"
-              $python_bin $OPENFOLD_HOME/scripts/pickle_to_json.py \\
+              echo "generate JSON for model {model}"
+              $python_bin -u $OPENFOLD_HOME/scripts/pickle_to_json.py \\
                 --model_pkl $__task_output_dir/predictions/{fold_name}_model_{model}_multimer_v3_output_dict.pkl \\
                 --output_dir $__task_output_dir/predictions/ \\
                 --basename "{fold_name}" \\
@@ -280,8 +280,8 @@ def dag_gen(dsl):
             
             cd $OPENFOLD_HOME
                     
-            $python_bin ${OPENFOLD_HOME}/scripts/precompute_alignments_mmseqs.py \\
-               --threads 72 \\
+            $python_bin -u ${OPENFOLD_HOME}/scripts/precompute_alignments_mmseqs.py \\
+               --threads 64 \\
                --hhsearch_binary_path hhsearch \\
                --pdb70 $collabfold_db/pdb100 \\
                --env_db colabfold_envdb_202108_db \\
@@ -296,7 +296,7 @@ def dag_gen(dsl):
             cd $OPENFOLD_HOME
                         
             echo "running uniprot alignment on $__task_output_dir"
-            $python_bin ${OPENFOLD_HOME}/scripts/precompute_alignments.py \\
+            $python_bin -u ${OPENFOLD_HOME}/scripts/precompute_alignments.py \\
                 $__task_output_dir \\
                 $__task_output_dir \\
                 --uniprot_database_path $collabfold_db/uniprot/uniprot.fasta \\
@@ -314,7 +314,7 @@ def dag_gen(dsl):
             #!/usr/bin/bash                        
             set -e            
             echo "generating coverage plots"
-            $python_bin ${OPENFOLD_HOME}/scripts/generate_coverage_plot.py \\
+            $python_bin -u ${OPENFOLD_HOME}/scripts/generate_coverage_plot.py \\
               --input_pkl $__task_output_dir/${fold_name}_model_1_multimer_v3_feature_dict.pickle \\
               --output_dir $__task_output_dir/predictions/ \\
               --basename "${fold_name}_multimer_v3_relaxed"            
@@ -327,14 +327,14 @@ def dag_gen(dsl):
             touch $__task_output_dir/predictions/${fold_name}.done.txt
             mkdir -p $__task_output_dir/predictions/unrelaxed
             mv $__task_output_dir/predictions/*unrelaxed.pdb $__task_output_dir/predictions/unrelaxed/
-            $python_bin $colabfold_analysis_script $__task_output_dir/predictions            
+            $python_bin -u $colabfold_analysis_script $__task_output_dir/predictions            
             """
         ).calls(
             """
             #!/usr/bin/bash                        
             set -e            
             echo "generating PAE, plDDT plots and JSON files"
-            $python_bin ${OPENFOLD_HOME}/scripts/generate_pae_plddt_plot.py \\
+            $python_bin -u ${OPENFOLD_HOME}/scripts/generate_pae_plddt_plot.py \\
               --fasta $__task_output_dir/${fold_name}.fa \\
               --model1_pkl $__task_output_dir/predictions/${fold_name}_model_1_multimer_v3_output_dict.pkl \\
               --model2_pkl $__task_output_dir/predictions/${fold_name}_model_2_multimer_v3_output_dict.pkl \\
@@ -465,7 +465,7 @@ def dag_gen(dsl):
                 mkdir -p $__task_output_dir/unrelaxed
                 mv $__task_output_dir/*unrelaxed_* $__task_output_dir/unrelaxed/                                
                 
-                python $colabfold_analysis_script $__task_output_dir
+                python -u $colabfold_analysis_script $__task_output_dir
     
                 echo "done"
     
