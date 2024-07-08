@@ -1,11 +1,15 @@
 import os.path
+
 from pathlib import Path
 
 import requests
 
 import pandas as pd
 
+from dpfold.multimer import parse_multimer_list_from_samplesheet
+from dpfold.multimer import file_path as multimer_code_file
 from dry_pipe import TaskConf, DryPipe
+
 
 def collabfold_db():
 
@@ -97,142 +101,40 @@ def big_gpu_task_conf():
     )
 
 
+
 # not required for now. Will see later if work without network
 @DryPipe.python_call()
-def generate_pdb(row, __task_output_dir):
-    pdb_dir = os.path.join(__task_output_dir, "pdb")
-    if not os.path.exists(pdb_dir):
-        os.makedirs(pdb_dir)
+def generate_pdb(samplesheet, multimer_name, __task_output_dir):
+    multimer = parse_multimer_list_from_samplesheet(samplesheet, multimer_name)[0]
+    multimer.generate_pdb(__task_output_dir)
 
-    prot_nbr = 1
-    while f"protein{prot_nbr}_PDB" in row.index:
-        if not pd.isna(row[f"protein{prot_nbr}_PDB"]):
-            pdb_str = row[f"protein{prot_nbr}_PDB"]
-            pdb_list = pdb_str.split(",")
-            for pdb in pdb_list:
-                # download pdb if pdb id is provided
-                pdb_out = os.path.join(pdb_dir, f"{pdb.lower()}.cif")
-                if os.path.exists(pdb_out):
-                    print(f"{pdb_out} already found. No need to re-download")
-                else:
-                    print(f"Downloading and generating pdb: {pdb}")
-                    URL = f"https://files.rcsb.org/download/{pdb}.cif"
-                    response = requests.get(URL)
-                    with open(pdb_out, 'w') as out:
-                        out.write(response.text)
-                        # modify cif file to include new section. Change name to pdb
-                        # https://github.com/sokrypton/ColabFold/issues/177
-                        out.write('#\n')
-                        out.write('loop_\n')
-                        out.write('_pdbx_audit_revision_history.ordinal\n')
-                        out.write('_pdbx_audit_revision_history.data_content_type\n')
-                        out.write('_pdbx_audit_revision_history.major_revision\n')
-                        out.write('_pdbx_audit_revision_history.minor_revision\n')
-                        out.write('_pdbx_audit_revision_history.revision_date\n')
-                        out.write('1 \'Structure model\' 1 0 1971-01-01\n')
-                        out.write('#\n')
-
-        prot_nbr = prot_nbr + 1
-
-def get_row(samplesheet, multimer_name):
-    folds = pd.read_csv(samplesheet, sep='\t', index_col="multimer_name")
-    for index, row in folds.iterrows():
-        if index != multimer_name:
-            continue
-
-        return row
-
-def length_raw_seq(row):
-
-    prot_nbr = 1
-    res = 0
-
-    while f"protein{prot_nbr}_name" in row.index:
-        if not pd.isna(row[f"protein{prot_nbr}_name"]):
-            p_nbr = int(row[f"protein{prot_nbr}_nbr"])
-            p_seq = row[f"protein{prot_nbr}_seq"]
-            res += len(p_seq) * p_nbr
-
-        prot_nbr = prot_nbr + 1
-
-    return res
 
 @DryPipe.python_call()
 def generate_fasta_colabfold(samplesheet, multimer_name, fa_out):
-
-    row = get_row(samplesheet, multimer_name)
-    prot_nbr = 1
-    fa_header = ""
-    fa_seq = []
-    while f"protein{prot_nbr}_name" in row.index:
-        if not pd.isna(row[f"protein{prot_nbr}_name"]):
-            p_name = row[f"protein{prot_nbr}_name"]
-            p_nbr = int(row[f"protein{prot_nbr}_nbr"])
-            p_seq = row[f"protein{prot_nbr}_seq"]
-            fa_header = fa_header + f"{p_name}_{p_nbr}_"
-            fa_seq.extend([p_seq] * p_nbr)
-        prot_nbr = prot_nbr + 1
-
-    fa_header = fa_header[:-1]
-    seq = ":".join(fa_seq)
-    with open(fa_out, 'w') as f:
-        f.write(f">{fa_header}\n")
-        f.write(f"{seq}\n")
-
-def generate_openfold_fold_name(row):
-    prot_nbr = 1
-    fa_header = []
-    while f"protein{prot_nbr}_name" in row.index:
-        if not pd.isna(row[f"protein{prot_nbr}_name"]):
-            p_name = row[f"protein{prot_nbr}_name"]
-            p_nbr = int(row[f"protein{prot_nbr}_nbr"])
-            for x in range(1, p_nbr + 1):
-                fa_header.extend([f"{p_name}_{x}"])
-
-        prot_nbr = prot_nbr + 1
-
-    foldname = "-".join(fa_header)
-    return foldname
+    multimer = parse_multimer_list_from_samplesheet(samplesheet, multimer_name)[0]
+    return multimer.generate_fasta_colabfold(fa_out)
 
 
 @DryPipe.python_call()
 def generate_fasta_openfold(fa_out, samplesheet, multimer_name):
+    multimer = parse_multimer_list_from_samplesheet(samplesheet, multimer_name)[0]
+    return multimer.generate_fasta_openfold(fa_out)
 
-    prot_nbr = 1
-    fa_header = []
-    fa_seq = []
-
-    row = get_row(samplesheet, multimer_name)
-
-    while f"protein{prot_nbr}_name" in row.index:
-        if not pd.isna(row[f"protein{prot_nbr}_name"]):
-            p_name = row[f"protein{prot_nbr}_name"]
-            p_nbr = int(row[f"protein{prot_nbr}_nbr"])
-            p_seq = row[f"protein{prot_nbr}_seq"]
-            for x in range(1, p_nbr + 1):
-                fa_header.extend([f"{p_name}_{x}"])
-
-            fa_seq.extend([p_seq] * p_nbr)
-        prot_nbr = prot_nbr + 1
-
-    with open(fa_out, 'w') as f:
-        for h, s in zip(fa_header, fa_seq):
-            f.write(f">{h}\n")
-            f.write(f"{s}\n")
 
 def dag_gen(dsl):
 
     samplesheet = os.path.join(dsl.pipeline_instance_dir(), "samplesheet.tsv")
 
-    folds = pd.read_csv(samplesheet, sep='\t', index_col="multimer_name")
+    multimers = parse_multimer_list_from_samplesheet(samplesheet)
 
-    def requires_big_gpu_node(row):
+    def requires_big_gpu_node(multimer):
         return True
-        #return length_raw_seq(row) > 300
+        #return multimer.sequence_length() > 2700
 
-    def openfold_analysis(index):
+    def openfold_analysis(multimer):
 
-        fold_name = generate_openfold_fold_name(row)
+        fold_name = multimer.generate_openfold_fold_name()
+        multimer_name = multimer.multimer_name()
 
         def fold_model(model):
             return f"""
@@ -260,13 +162,14 @@ def dag_gen(dsl):
             """
 
         return dsl.task(
-            key=f"analysis-openfold.{index}",
+            key=f"analysis-openfold.{multimer_name}",
             is_slurm_array_child=True,
             task_conf=big_gpu_task_conf()
         ).inputs(
             samplesheet=dsl.file(samplesheet),
-            multimer_name=index,
-            code_dep=dsl.file(__file__),
+            multimer_name=multimer_name,
+            code_dep1=dsl.file(__file__),
+            code_dep2=dsl.file(multimer_code_file()),
             fold_name=fold_name,
             colabfold_analysis_script=dsl.file(colabfold_analysis_script())
         ).outputs(
@@ -301,7 +204,10 @@ def dag_gen(dsl):
                 $__task_output_dir \\
                 --uniprot_database_path $collabfold_db/uniprot/uniprot.fasta \\
                 --jackhmmer_binary_path jackhmmer \\
-                --cpus_per_task 72
+                --cpus_per_task 32                
+                
+            ls $__task_output_dir/uniprot_hits.sto
+                
             """
         ).calls(
             fold_model(1)
@@ -311,8 +217,8 @@ def dag_gen(dsl):
             fold_model(3)
         ).calls(
             """
-            #!/usr/bin/bash                        
-            set -e            
+            #!/usr/bin/bash
+            set -e
             echo "generating coverage plots"
             $python_bin -u ${OPENFOLD_HOME}/scripts/generate_coverage_plot.py \\
               --input_pkl $__task_output_dir/${fold_name}_model_1_multimer_v3_feature_dict.pickle \\
@@ -349,20 +255,23 @@ def dag_gen(dsl):
         )()
 
 
-    for index, row in folds.iterrows():
+    for multimer in multimers:
 
-        if requires_big_gpu_node(row):
-            yield openfold_analysis(index)
+        multimer_name = multimer.multimer_name()
+
+        if requires_big_gpu_node(multimer):
+            yield openfold_analysis(multimer)
         else:
 
             colabfold_search_task = dsl.task(
-                key=f"colabfold_search.{index}",
+                key=f"colabfold_search.{multimer_name}",
                 is_slurm_array_child=True,
                 task_conf=narval_task_conf()
             ).inputs(
                 samplesheet=dsl.file(samplesheet),
-                multimer_name=index,
-                code_dep=dsl.file(__file__)
+                multimer_name=multimer_name,
+                code_dep1=dsl.file(__file__),
+                code_dep2=dsl.file(multimer_code_file())
             ).outputs(
                 fa_out=dsl.file(f'fold.fa'),
                 a3m=dsl.file(f'0.a3m')
@@ -415,19 +324,23 @@ def dag_gen(dsl):
             children_tasks=match.tasks
         )()
 
-        for index, row in folds.iterrows():
+        for _, row in folds.iterrows():
+
+            multimer_name = extract_multimer_name
 
             if requires_big_gpu_node(row):
                 continue
 
             colabfold_batch_task = dsl.task(
-                key=f"colabfold_batch.{index}",
+                key=f"colabfold_batch.{multimer_name}",
                 is_slurm_array_child=True,
                 task_conf=narval_task_conf()
             ).inputs(
                 a3m=colabfold_search_task.outputs.a3m,
                 db=collabfold_db(),
-                colabfold_analysis_script=dsl.file(colabfold_analysis_script())
+                colabfold_analysis_script=dsl.file(colabfold_analysis_script()),
+                code_dep1=dsl.file(__file__),
+                code_dep2=dsl.file(multimer_code_file())
             ).outputs(
                 relaxed_pdb=dsl.file(f'fold.fa'),
                 unrelaxed_pdb=dsl.file(f'0.a3m')
