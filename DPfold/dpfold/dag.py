@@ -128,7 +128,7 @@ def dag_gen(dsl):
     multimers = parse_multimer_list_from_samplesheet(samplesheet)
 
     def requires_big_gpu_node(multimer):
-        return True
+        return False
         #return multimer.sequence_length() > 2700
 
     def openfold_analysis(multimer):
@@ -254,7 +254,6 @@ def dag_gen(dsl):
             """
         )()
 
-
     for multimer in multimers:
 
         multimer_name = multimer.multimer_name()
@@ -312,9 +311,6 @@ def dag_gen(dsl):
             children_tasks=match.tasks
         )()
 
-    if True:
-        return
-
     for match in dsl.query_all_or_nothing("colabfold_search.*", state="ready"):
 
         yield dsl.task(
@@ -324,19 +320,17 @@ def dag_gen(dsl):
             children_tasks=match.tasks
         )()
 
-        for _, row in folds.iterrows():
+    for match in dsl.query_all_or_nothing("colabfold_search.*", state="completed"):
+        for search_task in match.tasks:
 
-            multimer_name = extract_multimer_name
-
-            if requires_big_gpu_node(row):
-                continue
+            multimer_name = str(search_task.inputs.multimer_name)
 
             colabfold_batch_task = dsl.task(
                 key=f"colabfold_batch.{multimer_name}",
                 is_slurm_array_child=True,
                 task_conf=narval_task_conf()
             ).inputs(
-                a3m=colabfold_search_task.outputs.a3m,
+                a3m=search_task.outputs.a3m,
                 db=collabfold_db(),
                 colabfold_analysis_script=dsl.file(colabfold_analysis_script()),
                 code_dep1=dsl.file(__file__),
