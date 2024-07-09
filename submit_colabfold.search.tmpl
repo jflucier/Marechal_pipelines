@@ -9,13 +9,13 @@
 #SBATCH --mem=40G
 
 set -ex
-module load gcc/9.3.0 cuda/11.4 openmpi/4.0.3 openmm/8.0.0 mmseqs2/14-7e284 hh-suite/3.3.0 hmmer/3.2.1
+module load gcc/9.3.0 cuda/11.4 openmpi/4.0.3 openmm/8.0.0 hh-suite/3.3.0 hmmer/3.2.1
 source $ENV
 
 echo "running colabfold_search on $fasta!"
 colabfold_search \
 --threads 8 --use-env 1 --db-load-mode 0 \
---mmseqs mmseqs \
+--mmseqs /lustre06/project/6003342/programs/mmseqs/bin/mmseqs \
 --db1 $colabfold_db/uniref30_2302_db \
 --db2 $colabfold_db/pdb100_230517 \
 --db3 $colabfold_db/colabfold_envdb_202108_db \
