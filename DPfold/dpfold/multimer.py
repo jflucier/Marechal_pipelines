@@ -112,6 +112,7 @@ def parse_multimer_list_from_samplesheet(samplesheet, single_multimer_name=None)
         with open(samplesheet) as f:
             c = 1
             for line in f.readlines():
+                line = line.rstrip()
                 if c == 1:
                     pass
                 elif line.startswith("#"):
