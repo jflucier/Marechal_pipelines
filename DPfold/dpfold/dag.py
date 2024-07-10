@@ -93,7 +93,8 @@ def big_gpu_task_conf():
             "remote_base_dir": "/tank/maxl",
             "collabfold_db": "/tank/jflucier/mmseqs_dbs",
             "OPENFOLD_HOME": f"{programs_base_dir}/openfold",
-            "PATH": f"{programs_base_dir}/conda/envs/openfold_env/bin:{programs_base_dir}/MMseqs2/build/bin:$PATH"
+            "PATH": f"{programs_base_dir}/conda/envs/openfold_env/bin:{programs_base_dir}/MMseqs2/build/bin:$PATH",
+            "HOME": "$__task_output_dir/fake_home"
         },
         ssh_remote_dest=f"gh1301:{remote_pipeline_base_dir}",
         python_bin="/home/def-marechal/programs/conda/envs/openfold_env/bin/python3"
@@ -181,6 +182,9 @@ def openfold_dag(dsl, list_of_multimers, samplesheet):
         ).calls("""
             #!/usr/bin/bash                        
             set -e
+
+            echo "user home is $HOME"
+            mkdir -p $HOME
 
             cd $OPENFOLD_HOME
 
