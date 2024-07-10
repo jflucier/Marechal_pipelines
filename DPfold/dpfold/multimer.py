@@ -67,9 +67,10 @@ class Multimer:
             fa_seq.extend([protein.seq] * protein.n_occurences)
 
         with open(fa_out, 'w') as f:
-            for h, s in zip(fa_header, fa_seq):
-                f.write(f">{h}\n")
-                f.write(f"{s}\n")
+            f.write("\n".join(
+                [f">{h}\n{s}" for h, s in zip(fa_header, fa_seq)]
+            ))
+
 
     def generate_pdb(self, output_dir):
 

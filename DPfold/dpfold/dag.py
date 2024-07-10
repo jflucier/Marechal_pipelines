@@ -64,8 +64,7 @@ def narval_task_conf():
         extra_env={
             "MUGQIC_INSTALL_HOME": "/cvmfs/soft.mugqic/CentOS6",
             "DRYPIPE_TASK_DEBUG": "True",
-            "PYTHONPATH":
-                f"{remote_pipeline_base_dir}/tiny/external-file-deps{this_python_root}",
+            "PYTHONPATH": f"$__pipeline_instance_dir/external-file-deps{this_python_root}",
             "TASK_VENV": f"{remote_base_dir()}/programs/colabfold_af2.3.2_env",
             "remote_base_dir": remote_base_dir(),
             "collabfold_db": collabfold_db()
@@ -121,18 +120,9 @@ def generate_fasta_openfold(fa_out, samplesheet, multimer_name):
     return multimer.generate_fasta_openfold(fa_out)
 
 
-def dag_gen(dsl):
+def openfold_dag(dsl, list_of_multimers, samplesheet):
 
-    samplesheet = os.path.join(dsl.pipeline_instance_dir(), "samplesheet.tsv")
-
-    multimers = parse_multimer_list_from_samplesheet(samplesheet)
-
-    def requires_big_gpu_node(multimer):
-        return False
-        #return multimer.sequence_length() > 2700
-
-    def openfold_analysis(multimer):
-
+    for multimer in list_of_multimers:
         fold_name = multimer.generate_openfold_fold_name()
         multimer_name = multimer.multimer_name()
 
@@ -140,10 +130,21 @@ def dag_gen(dsl):
             return f"""
               #!/usr/bin/bash                        
               set -ex
-                          
+              
               echo "folding using model {model}"
+              
+              echo "SLURM_STEP_GPUS: $SLURM_STEP_GPUS"
+              echo "SLURM_JOB_GPUS: $SLURM_JOB_GPUS"
+              echo "CUDA_VISIBLE_DEVICES: $CUDA_VISIBLE_DEVICES"
+              
+              nvidia-smi dmon \\
+                --id=$SLURM_JOB_GPUS \\
+                --select=u \\
+                --options=T \\
+                --filename=$__task_control_dir/nvidia-smi.log &
+              
               cd $OPENFOLD_HOME
-                            
+
               $python_bin -u $OPENFOLD_HOME/run_pretrained_openfold.py \\
                 $__task_output_dir \\
                 $collabfold_db/pdb_mmcif/mmcif_files \\
@@ -152,7 +153,7 @@ def dag_gen(dsl):
                 --model_device "cuda:0" \\
                 --output_dir $__task_output_dir \\
                 --save_outputs
-            
+
               echo "generate JSON for model {model}"
               $python_bin -u $OPENFOLD_HOME/scripts/pickle_to_json.py \\
                 --model_pkl $__task_output_dir/predictions/{fold_name}_model_{model}_multimer_v3_output_dict.pkl \\
@@ -161,7 +162,7 @@ def dag_gen(dsl):
                 --model_nbr {model}                
             """
 
-        return dsl.task(
+        yield dsl.task(
             key=f"analysis-openfold.{multimer_name}",
             is_slurm_array_child=True,
             task_conf=big_gpu_task_conf()
@@ -180,9 +181,9 @@ def dag_gen(dsl):
         ).calls("""
             #!/usr/bin/bash                        
             set -e
-            
+
             cd $OPENFOLD_HOME
-                    
+
             $python_bin -u ${OPENFOLD_HOME}/scripts/precompute_alignments_mmseqs.py \\
                --threads 64 \\
                --hhsearch_binary_path hhsearch \\
@@ -197,17 +198,15 @@ def dag_gen(dsl):
             #!/usr/bin/bash                        
             set -e
             cd $OPENFOLD_HOME
-                        
+
             echo "running uniprot alignment on $__task_output_dir"
             $python_bin -u ${OPENFOLD_HOME}/scripts/precompute_alignments.py \\
                 $__task_output_dir \\
                 $__task_output_dir \\
+                --raise_errors \\
                 --uniprot_database_path $collabfold_db/uniprot/uniprot.fasta \\
                 --jackhmmer_binary_path jackhmmer \\
-                --cpus_per_task 32                
-                
-            ls $__task_output_dir/uniprot_hits.sto
-                
+                --cpus_per_task 32
             """
         ).calls(
             fold_model(1)
@@ -248,60 +247,11 @@ def dag_gen(dsl):
               --output_dir $__task_output_dir/predictions/ \\
               --basename "${fold_name}" \\
               --interface $__task_output_dir/predictions/predictions_analysis/interfaces.csv            
-              
+
             cd $__task_output_dir
             zip -r $analysis_zip * -x "*.pkl" "*.pickle"              
             """
         )()
-
-    for multimer in multimers:
-
-        multimer_name = multimer.multimer_name()
-
-        if requires_big_gpu_node(multimer):
-            yield openfold_analysis(multimer)
-        else:
-
-            colabfold_search_task = dsl.task(
-                key=f"colabfold_search.{multimer_name}",
-                is_slurm_array_child=True,
-                task_conf=narval_task_conf()
-            ).inputs(
-                samplesheet=dsl.file(samplesheet),
-                multimer_name=multimer_name,
-                code_dep1=dsl.file(__file__),
-                code_dep2=dsl.file(multimer_code_file())
-            ).outputs(
-                fa_out=dsl.file(f'fold.fa'),
-                a3m=dsl.file(f'0.a3m')
-            ).calls(
-                generate_fasta_colabfold
-            ).calls("""
-                #!/usr/bin/bash
-                
-                set -e
-                
-                module load StdEnv/2020 gcc/9.3.0 cuda/11.4 openmpi/4.0.3 openmm/8.0.0 hh-suite/3.3.0 hmmer/3.2.1
-    
-                TE=$TASK_VENV/bin/activate                      
-                echo "will activate env: $TE"
-                source $TE                                                
-                            
-                export PATH=$remote_base_dir/programs/mmseqs/bin:$PATH
-                
-                echo "running colabfold search"
-                colabfold_search \\
-                  --threads 8 --use-env 1 --db-load-mode 0 \\
-                  --mmseqs mmseqs \\
-                  --db1 $collabfold_db/uniref30_2302_db \\
-                  --db2 $collabfold_db/pdb100_230517 \\
-                  --db3 $collabfold_db/colabfold_envdb_202108_db \\
-                  $fa_out $collabfold_db $__task_output_dir
-                
-                echo "done"
-    
-            """)()
-            yield colabfold_search_task
 
     for match in dsl.query_all_or_nothing("analysis-openfold.*", state="ready"):
         yield dsl.task(
@@ -311,8 +261,55 @@ def dag_gen(dsl):
             children_tasks=match.tasks
         )()
 
-    for match in dsl.query_all_or_nothing("colabfold_search.*", state="ready"):
 
+def collabfold_dag(dsl, list_of_multimers, samplesheet):
+
+    for multimer in list_of_multimers:
+
+        multimer_name = multimer.multimer_name()
+
+        colabfold_search_task = dsl.task(
+            key=f"colabfold_search.{multimer_name}",
+            is_slurm_array_child=True,
+            task_conf=narval_task_conf()
+        ).inputs(
+            samplesheet=dsl.file(samplesheet),
+            multimer_name=multimer_name,
+            code_dep1=dsl.file(__file__),
+            code_dep2=dsl.file(multimer_code_file())
+        ).outputs(
+            fa_out=dsl.file(f'fold.fa'),
+            a3m=dsl.file(f'0.a3m')
+        ).calls(
+            generate_fasta_colabfold
+        ).calls("""
+            #!/usr/bin/bash
+
+            set -e
+
+            module load StdEnv/2020 gcc/9.3.0 cuda/11.4 openmpi/4.0.3 openmm/8.0.0 hh-suite/3.3.0 hmmer/3.2.1
+
+            TE=$TASK_VENV/bin/activate                      
+            echo "will activate env: $TE"
+            source $TE                                                
+
+            export PATH=$remote_base_dir/programs/mmseqs/bin:$PATH
+
+            echo "running colabfold search"
+            colabfold_search \\
+              --threads 8 --use-env 1 --db-load-mode 0 \\
+              --mmseqs mmseqs \\
+              --db1 $collabfold_db/uniref30_2302_db \\
+              --db2 $collabfold_db/pdb100_230517 \\
+              --db3 $collabfold_db/colabfold_envdb_202108_db \\
+              $fa_out $collabfold_db $__task_output_dir
+
+            echo "done"
+
+        """)()
+        yield colabfold_search_task
+
+    for match in dsl.query_all_or_nothing("colabfold_search.*", state="ready"):
         yield dsl.task(
             key=f"colabfold-search-array",
             task_conf=narval_task_conf()
@@ -322,7 +319,6 @@ def dag_gen(dsl):
 
     for match in dsl.query_all_or_nothing("colabfold_search.*", state="completed"):
         for search_task in match.tasks:
-
             multimer_name = str(search_task.inputs.multimer_name)
 
             colabfold_batch_task = dsl.task(
@@ -331,7 +327,6 @@ def dag_gen(dsl):
                 task_conf=narval_task_conf()
             ).inputs(
                 a3m=search_task.outputs.a3m,
-                db=collabfold_db(),
                 colabfold_analysis_script=dsl.file(colabfold_analysis_script()),
                 code_dep1=dsl.file(__file__),
                 code_dep2=dsl.file(multimer_code_file())
@@ -340,42 +335,38 @@ def dag_gen(dsl):
                 unrelaxed_pdb=dsl.file(f'0.a3m')
             ).calls("""
                 #!/usr/bin/bash
-    
+
                 set -e
-    
+
                 module load StdEnv/2020 gcc/9.3.0 cuda/11.4 openmpi/4.0.3 openmm/8.0.0 hh-suite/3.3.0 hmmer/3.2.1
-    
+
                 source $TASK_VENV/bin/activate
-                
+
                 export TF_FORCE_UNIFIED_MEMORY="1"
                 export XLA_PYTHON_CLIENT_MEM_FRACTION="4.0"
                 export XLA_PYTHON_CLIENT_ALLOCATOR="platform"
-                export TF_FORCE_GPU_ALLOW_GROWTH="true"
-    
-                export IN=$a3m
-                export OUT=$__task_output_dir
-                export DOWNLOAD_DIR=$db
-                
+                export TF_FORCE_GPU_ALLOW_GROWTH="true"                                                    
+
                 export PATH=$remote_base_dir/programs/mmseqs/bin:$PATH
-    
+
                 echo "running colabfold fold"
                 colabfold_batch \\
                   --use-gpu-relax --amber --num-relax 3 \\
                   --num-models 3 \\
                   --num-recycle 30 --recycle-early-stop-tolerance 0.5 \\
                   --model-type auto \\
-                  --data $DOWNLOAD_DIR \\
-                  ${IN} \\
-                  ${OUT}
-                
+                  --data $collabfold_db \\
+                  $a3m \\
+                  $__task_output_dir
+
                 echo "running AF2multimer-analysis"
                 mkdir -p $__task_output_dir/unrelaxed
                 mv $__task_output_dir/*unrelaxed_* $__task_output_dir/unrelaxed/                                
-                
+
                 python -u $colabfold_analysis_script $__task_output_dir
-    
+
                 echo "done"
-    
+
             """)()
             yield colabfold_batch_task
 
@@ -386,8 +377,36 @@ def dag_gen(dsl):
         ).calls("""
             #!/usr/bin/bash
             set -xe
-            
+
             zip -r all_resuls.zip $__pipeline_instance_dir/output/colabfold_batch.* 
         """)()
 
-# if __name__ == '__main__':
+
+def dag_gen(dsl):
+
+    samplesheet = os.path.join(dsl.pipeline_instance_dir(), "samplesheet.tsv")
+
+    multimers = parse_multimer_list_from_samplesheet(samplesheet)
+
+    size_cutoff = 2700
+
+    def is_big_sequence(multimer):
+        return True
+        #return multimer.sequence_length() > size_cutoff
+
+    big_multimers = [
+        m for m in multimers if is_big_sequence(m)
+    ]
+
+    short_multimers = [
+        m for m in multimers if not is_big_sequence(m)
+    ]
+
+    yield from collabfold_dag(dsl, short_multimers, samplesheet)
+
+    yield from openfold_dag(dsl, big_multimers, samplesheet)
+
+    #for match_openfold_tasks in dsl.query_all_or_nothing("analysis-openfold.*"):
+    #    for match_collabfold_tasks in dsl.query_all_or_nothing("colabfold_batch.*"):
+    #        pass
+
