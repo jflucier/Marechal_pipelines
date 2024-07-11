@@ -85,7 +85,7 @@ echo "running AF2multimer-analysis on ${OUT}/predictions/"
 touch ${OUT}/predictions/${NAME}.done.txt
 mkdir -p ${OUT}/predictions/unrelaxed
 mv ${OUT}/predictions/*unrelaxed.pdb ${OUT}/predictions/unrelaxed/
-python ${AFM_SCRIPTS}/colabfold_analysis.py ${OUT}/predictions
+python ${AFM_SCRIPTS}/colabfold_analysis.py --pred_folder ${OUT}/predictions
 
 echo "generating PAE, plDDT plots and JSON files"
 python ${OF_SCRIPTS}/generate_pae_plddt_plot.py \
