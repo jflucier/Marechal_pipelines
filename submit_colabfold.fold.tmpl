@@ -33,7 +33,7 @@ echo "running AF2multimer-analysis on $outdir"
 mkdir -p $outdir/unrelaxed
 mv $outdir/*unrelaxed_* $outdir/unrelaxed/
 mv $outdir/0_predicted_aligned_error_v1.json $outdir/unrelaxed/
-python $script_path/AF2multimer-analysis/colabfold_analysis.py $outdir
+python $script_path/AF2multimer-analysis/colabfold_analysis.py --pred_folder $outdir
 
 echo "zipping results"
 cd $outdir/../
