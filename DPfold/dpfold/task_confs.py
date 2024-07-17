@@ -26,7 +26,7 @@ def narval_task_conf(sbatch_options):
             "PYTHONPATH": f"$__pipeline_instance_dir/external-file-deps{this_python_root}",
             "TASK_VENV": f"{remote_base_dir}/programs/colabfold_af2.3.2_env",
             "remote_base_dir": remote_base_dir,
-            "collabfold_db": "/nfs3_ib/nfs-ip34/home/def-marechal/programs/colabfold_db",
+            "collabfold_db": f"{remote_base_dir}/programs/colabfold_db",
             "HOME": "$__task_output_dir/fake_home"
         },
         ssh_remote_dest=f"{remote_login}:{remote_pipeline_base_dir}",
@@ -34,7 +34,7 @@ def narval_task_conf(sbatch_options):
         run_as_group=os.environ["SLURM_ACCOUNT"]
     )
 
-def big_gpu_task_conf():
+def gh_task_conf(sbatch_options):
 
     remote_pipeline_base_dir = "/tank/maxl"
 
@@ -43,10 +43,7 @@ def big_gpu_task_conf():
     return TaskConf(
         executer_type="slurm",
         slurm_account=None,
-        sbatch_options=[
-            "--time=24:00:00 --gpus-per-node=1 --cpus-per-task=64 --mem=440G",
-            "--nodelist=gh1301  -p c-gh"
-        ],
+        sbatch_options=sbatch_options + ["--nodelist=gh1301  -p c-gh"],
         extra_env={
             "PYTHONPATH": f"$__pipeline_instance_dir/external-file-deps{this_python_root}",
             "python_bin": f"{programs_base_dir}/conda/envs/openfold_env/bin/python3",
