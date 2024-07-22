@@ -1,7 +1,7 @@
 #!/bin/bash
 
-base_path=$1
-check_op=$2
+check_op=$1
+base_path=$2
 
 echo "running on base path: $base_path"
 list=$(ls -d ${base_path}/*/)
