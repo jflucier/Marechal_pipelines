@@ -1,0 +1,109 @@
+# tmux env
+cd /home/def-marechal/programs
+
+#wget -P /home/def-marechal/programs "https://github.com/conda-forge/miniforge/releases/download/23.3.1-1/Miniforge-pypy3-23.3.1-1-Linux-aarch64.sh"
+#rm -fr /home/def-marechal/programs/conda
+#bash /home/def-marechal/programs/Miniforge-pypy3-23.3.1-1-Linux-aarch64.sh -b -p /home/def-marechal/programs/conda
+conda update -y -n base -c conda-forge conda
+mamba create -y -n openfold_env_2.1.0 python=3.10
+mamba activate openfold_env_2.1.0
+
+# https://docs.nvidia.com/deeplearning/frameworks/install-pytorch-jetson-platform/index.html
+#export TORCH_INSTALL=https://developer.download.nvidia.cn/compute/redist/jp/v512/pytorch/torch-2.1.0a0+41361538.nv23.06-cp38-cp38-linux_aarch64.whl
+#python3 -m pip install --upgrade pip
+#python3 -m pip install numpy==1.26.1
+#export TORCH_CUDA_ARCH_LIST="9.0"
+#export CUDA_HOME="/usr/local/cuda-12.1"
+#export CUDA_ROOT="/usr/local/cuda-12.1"
+#export CUDA_PATH="/usr/local/cuda-12.1"
+#python3 -m pip install --no-cache ${TORCH_INSTALL}
+
+# build pytorch dependancies
+## try using builder scripts: https://github.com/pytorch/builder.git
+cd /home/def-marechal/programs
+git clone https://github.com/pytorch/pytorch.git pytorch_2.1
+cd pytorch_2.1
+git checkout v2.1.2
+
+git config --global --add safe.directory /home/def-marechal/programs/pytorch_2.1
+pip install -r /home/def-marechal/programs/pytorch_2.1/requirements.txt
+pip install auditwheel
+
+# install cudnn 9
+wget https://developer.download.nvidia.com/compute/cudnn/redist/cudnn/linux-sbsa/cudnn-linux-sbsa-9.2.1.18_cuda12-archive.tar.xz
+tar -xvf cudnn-linux-sbsa-9.2.1.18_cuda12-archive.tar.xz
+
+export USE_CUDA=1
+export USE_CUDNN=0
+export USE_ROCM=0
+export USE_MKLDNN=1
+export USE_MKLDNN_ACL=1
+export USE_FBGEMM=0
+export DUSE_MPI=0
+export USE_OPENMP=1
+export TORCH_CUDA_ARCH_LIST="9.0"
+export CUDA_HOME="/usr/local/cuda-12.1"
+export CUDA_ROOT="/usr/local/cuda-12.1"
+export CUDA_PATH="/usr/local/cuda-12.1"
+
+#export CUDNN_LIBRARY_PATH=/home/def-marechal/programs/cudnn-local-repo-rhel8-8.9.7.29/usr/lib64/
+#export CUDNN_INCLUDE_PATH=/home/def-marechal/programs/cudnn-local-repo-rhel8-8.9.7.29/usr/include
+#export CUDNN_ROOT="home/def-marechal/programs/cudnn-local-repo-rhel8-8.9.7.29"
+#export CUDNN_INCLUDE_DIR=/home/def-marechal/programs/cudnn-local-repo-rhel8-8.9.7.29/usr/include
+#export CUDNN_LIBRARY=/home/def-marechal/programs/cudnn-local-repo-rhel8-8.9.7.29/usr/lib64/
+export CUDNN_ROOT="/home/def-marechal/programs/cudnn-linux-sbsa-9.2.1.18_cuda12-archive"
+export CUDNN_INCLUDE_DIR="${CUDNN_ROOT}/include"
+export CUDNN_INCLUDE_PATH="${CUDNN_ROOT}/include"
+export CUDNN_LIBRARY_PATH="${CUDNN_ROOT}/lib"
+export CUDNN_LIBRARY="${CUDNN_ROOT}/lib"
+
+export ACL_ROOT_DIR="/home/def-marechal/programs/acl"
+export ACL_INCLUDE_DIR="${ACL_ROOT_DIR}/include"
+export ACL_LIBRARY="${ACL_ROOT_DIR}/build"
+
+export LD_LIBRARY_PATH="/usr/local/cuda-12.1/lib64":$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH="/usr/local/cuda-12.1/nvvm/lib64":$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH="/home/local/cuda-12.1/targets/sbsa-linux/lib":$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH="/opt/nvidia/hpc_sdk/Linux_aarch64/24.1/compilers/lib":$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH="${CUDNN_LIBRARY}":$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH="/home/def-marechal/programs/nccl_2.16.5-1+cuda11.8_aarch64/lib":$LD_LIBRARY_PATH
+
+
+export CMAKE_PREFIX_PATH=${CONDA_PREFIX:-"$(dirname $(which conda))/../"}
+export CMAKE_PREFIX_PATH=${ACL_LIBRARY}:$CMAKE_PREFIX_PATH
+export PATH="/usr/local/cuda-12.1/bin":$PATH
+export PATH="/usr/local/cuda-12.1/nvvm/bin":$PATH
+
+python3 setup.py develop
+python3 setup.py install
+python3 setup.py bdist_wheel
+
+#pip install mkl==2022.1.0
+#pip install mkl==2022.1.0
+mamba install cmake ninja
+mamba install -c nvidia -c conda-forge -c bioconda \
+openmm=7.7 pdbfixer biopython==1.84 pandas PyYAML==5.4.1 scipy numpy==1.23.5 \
+tqdm==4.62.2 typing-extensions wandb modelcif==0.7 awscli ml-collections aria2 git hmmer hhsuite kalign2
+pip install git+https://github.com/NVIDIA/dllogger.git
+
+# flash attention
+pip install flash-attn --no-build-isolation
+
+mamba install -y git-lfs
+pip install deepspeed==0.12.4
+pip install dm-tree==0.1.6
+#conda env config vars set PATH=$PATH:/home/def-marechal/programs/MMseqs2/build/bin
+echo '#!/bin/sh' > ${CONDA_PREFIX}/etc/conda/activate.d/env_vars.sh
+echo 'export PATH=$PATH:/home/def-marechal/programs/MMseqs2/build/bin' >> ${CONDA_PREFIX}/etc/conda/activate.d/env_vars.sh
+mamba deactivate
+
+mamba activate openfold_env_2.1.0
+cd /home/def-marechal/programs/
+git clone -b pl_upgrades git@github.com:jflucier/openfold.git openfold-pl_upgrades
+cd /home/def-marechal/programs/openfold-pl_upgrades
+python setup.py install
+
+pip install lightning
+
+python run_pretrained_openfold.py
+
