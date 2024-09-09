@@ -61,18 +61,18 @@ export ACL_ROOT_DIR="/home/def-marechal/programs/acl"
 export ACL_INCLUDE_DIR="${ACL_ROOT_DIR}/include"
 export ACL_LIBRARY="${ACL_ROOT_DIR}/build"
 
-export LD_LIBRARY_PATH="/usr/local/cuda-12.1/lib64":$LD_LIBRARY_PATH
-export LD_LIBRARY_PATH="/usr/local/cuda-12.1/nvvm/lib64":$LD_LIBRARY_PATH
-export LD_LIBRARY_PATH="/home/local/cuda-12.1/targets/sbsa-linux/lib":$LD_LIBRARY_PATH
-export LD_LIBRARY_PATH="/opt/nvidia/hpc_sdk/Linux_aarch64/24.1/compilers/lib":$LD_LIBRARY_PATH
-export LD_LIBRARY_PATH="${CUDNN_LIBRARY}":$LD_LIBRARY_PATH
-export LD_LIBRARY_PATH="/home/def-marechal/programs/nccl_2.16.5-1+cuda11.8_aarch64/lib":$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH="/usr/local/cuda-12.1/lib64:$LD_LIBRARY_PATH"
+export LD_LIBRARY_PATH="/usr/local/cuda-12.1/nvvm/lib64:$LD_LIBRARY_PATH"
+export LD_LIBRARY_PATH="/home/local/cuda-12.1/targets/sbsa-linux/lib:$LD_LIBRARY_PATH"
+export LD_LIBRARY_PATH="/opt/nvidia/hpc_sdk/Linux_aarch64/24.1/compilers/lib:$LD_LIBRARY_PATH"
+export LD_LIBRARY_PATH="${CUDNN_LIBRARY}:$LD_LIBRARY_PATH"
+export LD_LIBRARY_PATH="/home/def-marechal/programs/nccl_2.16.5-1+cuda11.8_aarch64/lib:$LD_LIBRARY_PATH"
 
 
 export CMAKE_PREFIX_PATH=${CONDA_PREFIX:-"$(dirname $(which conda))/../"}
 export CMAKE_PREFIX_PATH=${ACL_LIBRARY}:$CMAKE_PREFIX_PATH
-export PATH="/usr/local/cuda-12.1/bin":$PATH
-export PATH="/usr/local/cuda-12.1/nvvm/bin":$PATH
+export PATH="/usr/local/cuda-12.1/bin:$PATH"
+export PATH="/usr/local/cuda-12.1/nvvm/bin:$PATH"
 
 python3 setup.py develop
 python3 setup.py install
@@ -82,9 +82,28 @@ python3 setup.py bdist_wheel
 #pip install mkl==2022.1.0
 mamba install cmake ninja
 mamba install -c nvidia -c conda-forge -c bioconda \
-openmm=7.7 pdbfixer biopython==1.84 pandas PyYAML==5.4.1 scipy numpy==1.23.5 \
+openmm=7.7 pdbfixer biopython==1.84 pandas PyYAML==5.4.1 scipy numpy==1.24.3 \
 tqdm==4.62.2 typing-extensions wandb modelcif==0.7 awscli ml-collections aria2 git hmmer hhsuite kalign2
 pip install git+https://github.com/NVIDIA/dllogger.git
+
+# compile openmm
+cd /home/def-marechal/programs/openmm-7.7.0/
+mkdir build
+cd build
+export CMAKE_PREFIX_PATH=${CONDA_PREFIX:-"$(dirname $(which conda))/../"}
+export CMAKE_INSTALL_PREFIX=${CONDA_PREFIX:-"$(dirname $(which conda))/../"}
+export LD_LIBRARY_PATH="/usr/local/cuda-12.1/lib64:$LD_LIBRARY_PATH"
+mamba install -c conda-forge cmake make cython swig doxygen
+ccmake ..
+make -j 25
+export PATH="/usr/local/cuda-12.1/bin:$PATH"
+export PATH="/usr/local/cuda-12.1/nvvm/bin:$PATH"
+export CUDA_HOME="/usr/local/cuda-12.1"
+export CUDA_ROOT="/usr/local/cuda-12.1"
+export CUDA_PATH="/usr/local/cuda-12.1"
+export OPENMM_CUDA_COMPILER="/usr/local/cuda-12.1/bin/nvcc"
+make -j 25 test
+make install
 
 # flash attention
 pip install flash-attn --no-build-isolation
@@ -104,6 +123,7 @@ cd /home/def-marechal/programs/openfold-pl_upgrades
 python setup.py install
 
 pip install lightning
+pip install matplotlib
 
 python run_pretrained_openfold.py
 
@@ -122,3 +142,22 @@ tar --extract --verbose --file="${ROOT_DIR}/${BASENAME}" \
 DOWNLOAD_DIR="${PWD}/openfold_params"
 mkdir -p "${DOWNLOAD_DIR}"
 aws s3 cp --no-sign-request --region us-east-1 s3://openfold/openfold_params/ "${DOWNLOAD_DIR}" --recursive
+
+cd openfold/resources/
+wget --no-check-certificate -P alphafold/alphafold/common/ https://git.scicore.unibas.ch/schwede/openstructure/-/raw/7102c63615b64735c4941278d92b554ec94415f8/modules/mol/alg/src/stereo_chemical_props.txt
+mv alphafold/alphafold/common/stereo_chemical_props.txt .
+rm -r alphafold/
+
+
+#### tests
+mamba activate openfold_env_2.1.0
+mkdir /tank/def-marechal/analysis/20240827_gh_env_test
+vi /tank/def-marechal/analysis/20240827_gh_env_test/folds.tsv
+python /home/def-marechal/programs/Marechal_pipelines/generate_fold_slurm_scripts.py \
+-fe openfold \
+-db /tank/jflucier/mmseqs_dbs \
+-fs /tank/def-marechal/analysis/20240827_gh_env_test/folds.tsv \
+-o /tank/def-marechal/analysis/20240827_gh_env_test/
+
+
+
