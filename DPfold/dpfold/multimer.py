@@ -18,6 +18,9 @@ class Multimer:
         self.proteins = proteins
         self.line_number_in_samplesheet = line_number_in_samplesheet
 
+    def protein_count(self):
+        return len(self.proteins)
+
     def multimer_name(self):
         return "-".join([
             f"{protein.name}_{protein.n_occurences}"
