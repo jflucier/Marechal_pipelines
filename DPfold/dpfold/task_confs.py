@@ -40,23 +40,28 @@ def gh_task_conf(sbatch_options):
 
     programs_base_dir = "/home/def-marechal/programs"
 
+    #conda_env_path = f"{programs_base_dir}/conda/envs/openfold_env_1.12"
+    #openfold_home = f"{programs_base_dir}/openfold"
+
+    conda_env_path = f"{programs_base_dir}/conda/envs/openfold_env_2.1.0"
+    openfold_home = f"{programs_base_dir}/openfold-pl_upgrades"
+
     return TaskConf(
         executer_type="slurm",
         slurm_account=None,
         sbatch_options=sbatch_options + ["--nodelist=gh1301  -p c-gh"],
         extra_env={
             "PYTHONPATH": f"$__pipeline_instance_dir/external-file-deps{this_python_root}",
-            "python_bin": f"{programs_base_dir}/conda/envs/openfold_env/bin/python3",
+            "python_bin": f"{conda_env_path}/bin/python3",
             "remote_base_dir": remote_pipeline_base_dir,
             "collabfold_db": "/tank/jflucier/mmseqs_dbs",
-            "OPENFOLD_HOME": f"{programs_base_dir}/openfold",
-            "PATH": f"{programs_base_dir}/conda/envs/openfold_env/bin:{programs_base_dir}/MMseqs2/build/bin:$PATH",
+            "OPENFOLD_HOME": openfold_home,
+            "PATH": f"{conda_env_path}/bin:{programs_base_dir}/MMseqs2/build/bin:$PATH",
             "HOME": "$__task_output_dir/fake_home",
-
             "DRYPIPE_TASK_DEBUG": "True",
             "CUDA_LAUNCH_BLOCKING": "1"
         },
         ssh_remote_dest=f"gh1301:{remote_pipeline_base_dir}",
-        python_bin="/home/def-marechal/programs/conda/envs/openfold_env/bin/python3",
+        python_bin=f"{conda_env_path}/bin/python3",
         run_as_group="def-marechal"
     )

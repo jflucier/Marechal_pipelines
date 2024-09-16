@@ -181,33 +181,39 @@ def openfold_dag(dsl, list_of_multimers, samplesheet, task_conf_func):
               set -ex
 
               echo "folding using model {model}"
-
-              echo "SLURM_STEP_GPUS: $SLURM_STEP_GPUS"
+              
               echo "SLURM_JOB_GPUS: $SLURM_JOB_GPUS"
-              echo "CUDA_VISIBLE_DEVICES: $CUDA_VISIBLE_DEVICES"
-                          
-              nvidia-smi dmon \\
-                --id=$SLURM_JOB_GPUS \\
-                --select=u \\
-                --options=T \\
-                --filename=$__task_control_dir/nvidia-smi.log &
+              echo "CUDA_VISIBLE_DEVICES: $CUDA_VISIBLE_DEVICES"                          
 
               in_dir=$__pipeline_instance_dir/output/of-align.${{multimer_name}}
               
+              echo "OPENFOLD_HOME=$OPENFOLD_HOME"
+              
               cd $OPENFOLD_HOME
+              
+              export PYTORCH_MEM_HISTORY_DUMP=$__task_output_dir/mem_dump_for_model_{model}.pickle
+              
+              if [ "$protein_count" = "1" ]; then
+                  config_preset="model_{model}_ptm"                  
+                  model_pkl=$__task_output_dir/predictions/${{fold_name}}_model_{model}_ptm_output_dict.pkl
+              else 
+                  config_preset="model_{model}_multimer_v3"
+                  model_pkl=$__task_output_dir/predictions/${{fold_name}}_model_{model}_multimer_v3_output_dict.pkl
+              fi                            
 
               $python_bin -u $OPENFOLD_HOME/run_pretrained_openfold.py \\
                 $in_dir \\
                 $collabfold_db/pdb_mmcif/mmcif_files \\
                 --use_precomputed_alignments $in_dir \\
-                --config_preset "model_{model}_multimer_v3" \\
-                --model_device "cuda:0" \\
+                --config_preset $config_preset \\
+                --model_device "cuda:$SLURM_JOB_GPUS" \\
                 --output_dir $__task_output_dir \\
+                --jax_param_path /home/def-marechal/programs/openfold/params/params_${{config_preset}}.npz \\
                 --save_outputs
 
               echo "generate JSON for model {model}"
               $python_bin -u $OPENFOLD_HOME/scripts/pickle_to_json.py \\
-                --model_pkl $__task_output_dir/predictions/${{fold_name}}_model_{model}_multimer_v3_output_dict.pkl \\
+                --model_pkl $model_pkl \\
                 --output_dir $__task_output_dir/predictions/ \\
                 --basename ${{fold_name}} \\
                 --model_nbr {model}                
@@ -219,7 +225,8 @@ def openfold_dag(dsl, list_of_multimers, samplesheet, task_conf_func):
             task_conf=task_conf_func(slurm_options_fold)
         ).inputs(
             fold_name=fold_name,
-            multimer_name=multimer_name
+            multimer_name=multimer_name,
+            protein_count=str(multimer.protein_count())
         ).outputs(
             all_results=dsl.file_set("**/*"),
         ).calls(
