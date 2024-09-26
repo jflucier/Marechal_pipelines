@@ -109,7 +109,7 @@ class Multimer:
                         out.write('#\n')
 
 
-def parse_multimer_list_from_samplesheet(samplesheet, single_multimer_name=None) -> List[Multimer]:
+def parse_multimer_list_from_samplesheet(samplesheet, single_multimer_name=None, include_single_prots=False) -> List[Multimer]:
 
     def rows():
         with open(samplesheet) as f:
@@ -137,6 +137,14 @@ def parse_multimer_list_from_samplesheet(samplesheet, single_multimer_name=None)
                     yield Protein(name, n_occurences, pdb, seq)
 
             m = Multimer(list(prots_in_row()), line_number)
+
+            if not include_single_prots:
+                if m.protein_count() == 1:
+                    print(
+                        f"Warning: line {m.line_number_in_samplesheet} ({m.multimer_name()}) excluded, " +
+                        "because it contains only one prot"
+                    )
+                    continue
 
             if single_multimer_name is None:
                 yield m

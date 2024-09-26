@@ -1,8 +1,11 @@
 import glob
 import os.path
 from pathlib import Path
+
+
 from dry_pipe import DryPipe
 
+from dpfold import colabfold_analysis
 from dpfold.multimer import parse_multimer_list_from_samplesheet
 from dpfold.multimer import file_path as multimer_code_file
 
@@ -26,13 +29,7 @@ def generate_fasta_openfold(samplesheet, multimer_name, fa_out):
 
 
 def colabfold_analysis_script():
-
-    af2_script = os.path.join(Path(__file__).parent.parent.parent, "AF2multimer-analysis", "colabfold_analysis.py")
-
-    if not os.path.exists(af2_script):
-        raise Exception(f"script not found:{af2_script}, git submodule not fetched.")
-
-    return af2_script
+    return colabfold_analysis.code_path()
 
 
 @DryPipe.python_call()
@@ -67,14 +64,13 @@ def duplicate_stos(__task_output_dir):
 
 
 @DryPipe.python_call()
-def generate_aggregate_report(__pipeline_instance_dir, interfaces_csv, summaries_csv, contacts_csv):
+def generate_aggregate_report(__pipeline_instance_dir, interfaces_csv, summary_csv, contacts_csv):
 
     def gen_interfaces_lines():
 
         yield "fold_name,complex_name,model_num,pdockq,ncontacts,plddt_min,plddt_avg,plddt_max,pae_min,pae_avg,pae_max,distance_avg"
 
         for interfaces in Path(__pipeline_instance_dir, "output").glob("*/interfaces.csv"):
-            complex_name = ""
             with open(interfaces) as f_interfaces:
                 for line in f_interfaces:
                     yield line.strip()
@@ -83,7 +79,6 @@ def generate_aggregate_report(__pipeline_instance_dir, interfaces_csv, summaries
         yield "fold_name,complex_name,avg_n_models,max_n_models,num_contacts_with_max_n_models,num_unique_contacts,best_model_num,best_pdockq,best_plddt_avg,best_pae_avg"
 
         for summary in Path(__pipeline_instance_dir, "output").glob("*/summary.csv"):
-            complex_name = ""
             with open(summary) as f_summary:
                 for line in f_summary:
                     yield line.strip()
@@ -92,21 +87,20 @@ def generate_aggregate_report(__pipeline_instance_dir, interfaces_csv, summaries
 
         yield "fold_name,complex_name,model_num,aa1_chain,aa1_index,aa1_type,aa1_plddt,aa2_chain,aa2_index,aa2_type,aa2_plddt,pae,min_distance"
 
-        for contact in Path(__pipeline_instance_dir, "output").glob("*/contact.csv"):
-            complex_name = ""
+        for contact in Path(__pipeline_instance_dir, "output").glob("*/contacts.csv"):
             with open(contact) as f_contact:
                 for line in f_contact:
                     yield line.strip()
 
     def flush_lines_into(lines, file):
         with open(file, "w") as f:
-            for line in gen_interfaces_lines():
+            for line in lines:
                 f.write(line)
                 f.write("\n")
 
     flush_lines_into(gen_interfaces_lines(), interfaces_csv)
 
-    flush_lines_into(gen_summary_lines(), summaries_csv)
+    flush_lines_into(gen_summary_lines(), summary_csv)
 
     flush_lines_into(gen_contact_lines(), contacts_csv)
 
@@ -115,9 +109,7 @@ def openfold_dag(dsl, list_of_multimers, samplesheet, task_conf_func):
 
     slurm_options_align = ["--time=4:00:00 --cpus-per-task=8 --mem=100G"]
 
-    slurm_options_fold = ["--time=24:00:00 --gpus-per-node=1 --cpus-per-task=8 --mem=400G"]
-
-    slurm_options_report = ["--time=4:00:00 --cpus-per-task=8 --mem=40G"]
+    slurm_options_fold = ["--time=24:00:00 --gpus-per-node=1 --cpus-per-task=8 --mem=50G"]
 
     for multimer in list_of_multimers:
         fold_name = multimer.generate_openfold_fold_name()
@@ -187,9 +179,11 @@ def openfold_dag(dsl, list_of_multimers, samplesheet, task_conf_func):
 
               in_dir=$__pipeline_instance_dir/output/of-align.${{multimer_name}}
               
-              echo "OPENFOLD_HOME=$OPENFOLD_HOME"
+              echo "OPENFOLD_HOME=$OPENFOLD_HOME"              
               
               cd $OPENFOLD_HOME
+                                                    
+              echo "PATH: $PATH:"
               
               export PYTORCH_MEM_HISTORY_DUMP=$__task_output_dir/mem_dump_for_model_{model}.pickle
               
@@ -208,7 +202,7 @@ def openfold_dag(dsl, list_of_multimers, samplesheet, task_conf_func):
                 --config_preset $config_preset \\
                 --model_device "cuda:$SLURM_JOB_GPUS" \\
                 --output_dir $__task_output_dir \\
-                --jax_param_path /home/def-marechal/programs/openfold/params/params_${{config_preset}}.npz \\
+                --jax_param_path $OPENFOLD_HOME/openfold/resources/params/params_${{config_preset}}.npz \\
                 --save_outputs
 
               echo "generate JSON for model {model}"
@@ -226,7 +220,8 @@ def openfold_dag(dsl, list_of_multimers, samplesheet, task_conf_func):
         ).inputs(
             fold_name=fold_name,
             multimer_name=multimer_name,
-            protein_count=str(multimer.protein_count())
+            protein_count=str(multimer.protein_count()),
+            colabfold_analysis_script=dsl.file(colabfold_analysis_script())
         ).outputs(
             all_results=dsl.file_set("**/*"),
         ).calls(
@@ -235,44 +230,38 @@ def openfold_dag(dsl, list_of_multimers, samplesheet, task_conf_func):
             fold_model(2)
         ).calls(
             fold_model(3)
-        )()
-
-        yield dsl.task(
-            key=f"of-report.{multimer_name}",
-            is_slurm_array_child=True,
-            task_conf=task_conf_func(slurm_options_report)
-        ).inputs(
-            multimer_name=multimer_name
-        ).outputs(
-            all_results=dsl.file_set("**/*", exclude_pattern="*.pkl|*.pickle"),
         ).calls(
             """
             #!/usr/bin/bash
-            set -e
+            set -ex
             echo "generating coverage plots"
-            
-            $in_dir = $__pipeline_instance_dir/output/of-fold.${multimer_name}
+                        
+            align_task_out=$__pipeline_instance_dir/output/of-align.${multimer_name}
             
             $python_bin -u ${OPENFOLD_HOME}/scripts/generate_coverage_plot.py \\
-              --input_pkl $in_dir/${fold_name}_model_1_multimer_v3_feature_dict.pickle \\
+              --input_pkl $__task_output_dir/${fold_name}_model_1_multimer_v3_feature_dict.pickle \\
               --output_dir $__task_output_dir/predictions/ \\
-              --basename "${fold_name}_multimer_v3_relaxed"            
+              --basename "$__task_output_dir/${fold_name}_multimer_v3_relaxed"              
    
-            echo "running AF2multimer-analysis on $__task_output_dir/predictions/"
-            touch $__task_output_dir/predictions/${fold_name}.done.txt
-            mkdir -p $__task_output_dir/predictions/unrelaxed
-            mv $__task_output_dir/predictions/*unrelaxed.pdb $__task_output_dir/predictions/unrelaxed/
-            $python_bin -u $colabfold_analysis_script $__task_output_dir/predictions            
+            echo "running AF2multimer-analysis on $__task_output_dir/predictions/"                        
+            touch $__task_output_dir/predictions/${fold_name}.done.txt            
+            mkdir -p $__task_output_dir/predictions/unrelaxed            
+            mv $__task_output_dir/predictions/*unrelaxed.pdb $__task_output_dir/predictions/unrelaxed/ || true
+            $python_bin -u $colabfold_analysis_script \\
+                --pred_folder=$__task_output_dir/predictions \\
+                --out_folder=$__task_output_dir \\
+                --multimer_name=$multimer_name \\
+                --fasta=$align_task_out/${fold_name}.fa             
             
             echo "generating PAE, plDDT plots and JSON files"
             $python_bin -u ${OPENFOLD_HOME}/scripts/generate_pae_plddt_plot.py \\
-              --fasta $__task_output_dir/${fold_name}.fa \\
+              --fasta $align_task_out/${fold_name}.fa \\
               --model1_pkl $__task_output_dir/predictions/${fold_name}_model_1_multimer_v3_output_dict.pkl \\
               --model2_pkl $__task_output_dir/predictions/${fold_name}_model_2_multimer_v3_output_dict.pkl \\
               --model3_pkl $__task_output_dir/predictions/${fold_name}_model_3_multimer_v3_output_dict.pkl \\
               --output_dir $__task_output_dir/predictions/ \\
               --basename "${fold_name}" \\
-              --interface $__task_output_dir/predictions/predictions_analysis/interfaces.csv
+              --interface $__task_output_dir/interfaces.csv
             """
         )()
 
@@ -293,14 +282,6 @@ def openfold_dag(dsl, list_of_multimers, samplesheet, task_conf_func):
                 children_tasks=match.tasks
             )()
 
-            for _ in dsl.query_all_or_nothing("of-fold-array", state="completed"):
-                for match in dsl.query_all_or_nothing("of-report.", state="ready"):
-                    yield dsl.task(
-                        key=f"of-report-array",
-                        task_conf=task_conf_func(slurm_options_report)
-                    ).slurm_array_parent(
-                        children_tasks=match.tasks
-                    )()
 
 
 def collabfold_dag(dsl, list_of_multimers, samplesheet, collabfold_task_conf_func):
@@ -433,7 +414,7 @@ def aggregate_report_task(dsl):
     pipeline_instance_dir_basename = os.path.basename(dsl.pipeline_instance_dir())
 
     yield dsl.task(
-        key=f"aggregate-report"
+        key=f"of-aggregate-report"
     ).outputs(
         interfaces_csv=dsl.file(f"{pipeline_instance_dir_basename}.interfaces.csv"),
         summary_csv=dsl.file(f"{pipeline_instance_dir_basename}.summary.csv"),
@@ -500,7 +481,7 @@ def openfold_pipeline():
 
         yield from openfold_dag(dsl, multimers, samplesheet, gh_task_conf)
 
-        for _ in dsl.query_all_or_nothing("analysis-openfold.*"):
+        for _ in dsl.query_all_or_nothing("of-fold.*"):
             yield from aggregate_report_task(dsl)
 
     return DryPipe.create_pipeline(p)
