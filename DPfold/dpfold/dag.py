@@ -28,10 +28,6 @@ def generate_fasta_openfold(samplesheet, multimer_name, fa_out):
     return multimer.generate_fasta_openfold(fa_out)
 
 
-def colabfold_analysis_script():
-    return colabfold_analysis.code_path()
-
-
 @DryPipe.python_call()
 def duplicate_stos(__task_output_dir):
 
@@ -125,7 +121,7 @@ def openfold_dag(dsl, list_of_multimers, samplesheet, task_conf_func):
             code_dep1=dsl.file(__file__),
             code_dep2=dsl.file(multimer_code_file()),
             fold_name=fold_name,
-            colabfold_analysis_script=dsl.file(colabfold_analysis_script())
+            colabfold_analysis_script=dsl.file(colabfold_analysis.code_path())
         ).outputs(
             fa_out=dsl.file(f'{fold_name}.fa')
         ).calls(
@@ -190,10 +186,10 @@ def openfold_dag(dsl, list_of_multimers, samplesheet, task_conf_func):
               if [ "$protein_count" = "1" ]; then
                   config_preset="model_{model}_ptm"                  
                   model_pkl=$__task_output_dir/predictions/${{fold_name}}_model_{model}_ptm_output_dict.pkl
-              else 
+              else
                   config_preset="model_{model}_multimer_v3"
                   model_pkl=$__task_output_dir/predictions/${{fold_name}}_model_{model}_multimer_v3_output_dict.pkl
-              fi                            
+              fi
 
               $python_bin -u $OPENFOLD_HOME/run_pretrained_openfold.py \\
                 $in_dir \\
@@ -203,6 +199,7 @@ def openfold_dag(dsl, list_of_multimers, samplesheet, task_conf_func):
                 --model_device "cuda:$SLURM_JOB_GPUS" \\
                 --output_dir $__task_output_dir \\
                 --jax_param_path $OPENFOLD_HOME/openfold/resources/params/params_${{config_preset}}.npz \\
+                --long_sequence_inference \\
                 --save_outputs
 
               echo "generate JSON for model {model}"
@@ -221,7 +218,7 @@ def openfold_dag(dsl, list_of_multimers, samplesheet, task_conf_func):
             fold_name=fold_name,
             multimer_name=multimer_name,
             protein_count=str(multimer.protein_count()),
-            colabfold_analysis_script=dsl.file(colabfold_analysis_script())
+            colabfold_analysis_script=dsl.file(colabfold_analysis.code_path())
         ).outputs(
             all_results=dsl.file_set("**/*"),
         ).calls(
@@ -293,14 +290,15 @@ def collabfold_dag(dsl, list_of_multimers, samplesheet, collabfold_task_conf_fun
         multimer_name = multimer.multimer_name()
 
         colabfold_search_task = dsl.task(
-            key=f"colabfold_search.{multimer_name}",
+            key=f"cf-search.{multimer_name}",
             is_slurm_array_child=True,
             task_conf=collabfold_task_conf_func(colabfold_search_slurm_options)
         ).inputs(
             samplesheet=dsl.file(samplesheet),
             multimer_name=multimer_name,
             code_dep1=dsl.file(__file__),
-            code_dep2=dsl.file(multimer_code_file())
+            code_dep2=dsl.file(multimer_code_file()),
+            code_dep3=dsl.file(colabfold_analysis.code_path())
         ).outputs(
             fa_out=dsl.file(f'fold.fa'),
             a3m=dsl.file(f'0.a3m')
@@ -309,7 +307,7 @@ def collabfold_dag(dsl, list_of_multimers, samplesheet, collabfold_task_conf_fun
         ).calls("""
             #!/usr/bin/bash
 
-            set -e
+            set -ex
             
             mkdir -p $HOME/.licenses/
             touch $HOME/.licenses/intel
@@ -336,24 +334,24 @@ def collabfold_dag(dsl, list_of_multimers, samplesheet, collabfold_task_conf_fun
         """)()
         yield colabfold_search_task
 
-    for match in dsl.query_all_or_nothing("colabfold_search.*", state="ready"):
+    for match in dsl.query_all_or_nothing("cf-search.*", state="ready"):
         yield dsl.task(
-            key=f"colabfold-search-array",
+            key=f"cf-search-array",
             task_conf=collabfold_task_conf_func(colabfold_search_slurm_options)
         ).slurm_array_parent(
             children_tasks=match.tasks
         )()
 
-    for match in dsl.query_all_or_nothing("colabfold_search.*", state="completed"):
+    for match in dsl.query_all_or_nothing("cf-search.*", state="completed"):
         for search_task in match.tasks:
             multimer_name = str(search_task.inputs.multimer_name)
 
             colabfold_batch_task = dsl.task(
-                key=f"colabfold_batch.{multimer_name}",
+                key=f"cf-fold.{multimer_name}",
                 is_slurm_array_child=True
             ).inputs(
                 a3m=search_task.outputs.a3m,
-                colabfold_analysis_script=dsl.file(colabfold_analysis_script()),
+                colabfold_analysis_script=dsl.file(colabfold_analysis.code_path()),
                 code_dep1=dsl.file(__file__),
                 code_dep2=dsl.file(multimer_code_file())
             ).outputs(
@@ -388,21 +386,26 @@ def collabfold_dag(dsl, list_of_multimers, samplesheet, collabfold_task_conf_fun
                   --data $collabfold_db \\
                   $a3m \\
                   $__task_output_dir
+                
+                search_task_out=$__pipeline_instance_dir/output/cf-search.${multimer_name}
 
-                echo "running AF2multimer-analysis"
-                mkdir -p $__task_output_dir/unrelaxed
-                mv $__task_output_dir/*unrelaxed_* $__task_output_dir/unrelaxed/                                
-
-                $python_bin -u $colabfold_analysis_script --pred_folder $__task_output_dir
+                echo "running AF2multimer-analysis on $__task_output_dir/predictions/"
+                mkdir -p $__task_output_dir/predictions/unrelaxed
+                mv $__task_output_dir/predictions/*unrelaxed.pdb $__task_output_dir/predictions/unrelaxed/ || true
+                $python_bin -u $colabfold_analysis_script \\
+                    --pred_folder=$__task_output_dir/predictions \\
+                    --out_folder=$__task_output_dir \\
+                    --multimer_name=$multimer_name \\
+                    --fasta=$search_task_out/fold.fa
 
                 echo "done"
 
             """)()
             yield colabfold_batch_task
 
-        for match in dsl.query_all_or_nothing("colabfold_batch.*", state="ready"):
+        for match in dsl.query_all_or_nothing("cf-fold.*", state="ready"):
             yield dsl.task(
-                key=f"colabfold-batch-array",
+                key=f"cf-fold-array",
                 task_conf=["--time=8:00:00 --mem=120G --cpus-per-task=12 --gpus-per-node=1"]
             ).slurm_array_parent(
                 children_tasks=match.tasks
