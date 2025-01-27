@@ -38,13 +38,17 @@ def gh_task_conf(sbatch_options):
 
     remote_pipeline_base_dir = "/tank/maxl"
 
-    programs_base_dir = "/home/def-marechal/programs"
-
+    #programs_base_dir = "/home/def-marechal/programs"
     #conda_env_path = f"{programs_base_dir}/conda/envs/openfold_env_1.12"
     #openfold_home = f"{programs_base_dir}/openfold"
 
-    conda_env_path = f"{programs_base_dir}/conda/envs/openfold_env_2.1.0"
-    openfold_home = f"{programs_base_dir}/openfold-pl_upgrades"
+    #programs_base_dir = "/home/def-marechal/programs"
+    #conda_env_path = f"{programs_base_dir}/conda/envs/openfold_env_2.1.0"
+    #openfold_home = f"{programs_base_dir}/openfold-pl_upgrades"
+
+    programs_base_dir = "/home/def-marechal/programs"
+    conda_env_path = f"{programs_base_dir}/conda/envs/openfold_env_1.13"
+    openfold_home = f"{programs_base_dir}/openfold"
 
     return TaskConf(
         executer_type="slurm",
