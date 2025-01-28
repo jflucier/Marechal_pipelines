@@ -1,7 +1,10 @@
 import argparse
 import os.path
+import numpy as np
 import pandas as pd
+from nancorrmp.nancorrmp import NaNCorrMp
 
+np.random.seed(0)
 
 def gen_corr_matrix(in_f, out_m):
     print("Reading depmap data")
@@ -12,7 +15,7 @@ def gen_corr_matrix(in_f, out_m):
     )
 
     print("Running correlation")
-    df2=df.corr()
+    df2 = NaNCorrMp.calculate(df, n_jobs=32)
 
     print("Output correlation")
     df2.to_csv(
