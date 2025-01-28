@@ -33,6 +33,7 @@ def extract_top_hits(t, nbr_hits, out_filtered):
     # RFWD3 (55159)
     top_hits = pd.DataFrame()
     for column in df:
+        print(f"running {column}")
         sorted = df.sort_values(column)
         filtered_data = sorted.drop([column] , axis=0)
         d = filtered_data[column]
