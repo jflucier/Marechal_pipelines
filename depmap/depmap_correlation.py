@@ -2,7 +2,7 @@ import argparse
 import os.path
 import numpy as np
 import pandas as pd
-from nancorrmp.nancorrmp import NaNCorrMp
+# from nancorrmp.nancorrmp import NaNCorrMp
 
 np.random.seed(0)
 
@@ -36,13 +36,16 @@ def extract_top_hits(t, nbr_hits, out_filtered):
         sorted = df.sort_values(column)
         filtered_data = sorted.drop([column] , axis=0)
         d = filtered_data[column]
-        top_hits_highcorr = filtered_data.tail(nbr_hits)
-        top_hits_lowcorr = filtered_data.head(nbr_hits)
-        top_hits = top_hits.concat([top_hits_highcorr, top_hits_lowcorr])
+        # d['gene'] = column
+        r = pd.DataFrame({'gene': column, 'target': d.index, 'corr': d.values})
+        top_hits_highcorr = r.tail(nbr_hits)
+        top_hits_lowcorr = r.head(nbr_hits)
+        top_hits = pd.concat([top_hits, top_hits_lowcorr, top_hits_highcorr])
 
     top_hits.to_csv(
         out_filtered,
-        sep="\t"
+        sep="\t",
+        index = False
     )
 
 
@@ -76,9 +79,25 @@ if __name__ == '__main__':
         required=True
     )
 
+    argParser.add_argument(
+        "-t",
+        "--top_hits",
+        help="top hit number to return",
+        required=False,
+        default=250
+    )
+
     args = argParser.parse_args()
 
-    gen_corr_matrix(
-        args.depmap_data,
-        args.corr_matrix
-    )
+    i = args.depmap_data
+    o = args.corr_matrix
+    t = args.top_hits
+
+    # gen_corr_matrix(
+    #     i,
+    #     o
+    # )
+
+    # i = "/storage/Documents/service/biologie/marechal/analysis/20250127_ligasee3_depmap/CRISPRGeneDependency.corr.test.tsv"
+    # o = "/storage/Documents/service/biologie/marechal/analysis/20250127_ligasee3_depmap/CRISPRGeneDependency.corr.test.top5.tsv"
+    extract_top_hits(i, t, o)
