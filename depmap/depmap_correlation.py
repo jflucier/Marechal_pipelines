@@ -84,6 +84,7 @@ if __name__ == '__main__':
         "--top_hits",
         help="top hit number to return",
         required=False,
+        type=int,
         default=250
     )
 
