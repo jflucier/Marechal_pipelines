@@ -24,6 +24,7 @@ def gen_corr_matrix(in_f, out_m):
     )
 
 def extract_top_hits(t, nbr_hits, out_filtered):
+    print(f"reading correlation matrix {t}")
     df = pd.read_csv(
         t,
         sep="\t",
