@@ -17,8 +17,8 @@ def main():
     parser.add_argument("output_file")
 
     args = parser.parse_args()
-    in_0_df = pd.read_csv(args.in_csv_0, index_col="DepMap_ID")
-    in_1_df = pd.read_csv(args.in_csv_1, index_col="DepMap_ID")
+    in_0_df = pd.read_csv(args.in_csv_0, index_col=0)
+    in_1_df = pd.read_csv(args.in_csv_1, index_col=0)
     in_0_df, in_1_df = with_shared_cell_lines(in_0_df, in_1_df)
     in_0_cols = in_0_df.columns
     in_1_cols = in_1_df.columns    
