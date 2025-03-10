@@ -37,7 +37,7 @@ cd ..
 
 Follow the example:   ./example/env-il2_inversefold.sh
 
-It's a virtualenv init script for running pipelines in ./example
+It's a virtualenv init script for running pipelines instances from directory ./example
 
 ``` 
 cd ./example
@@ -49,4 +49,7 @@ mkdir MyPipelineInstanceDir
 # init virtual env :
 
 . ./env-il2_inversefold.sh `pwd`/MyPipelineInstanceDir
+
+drypipe run
+
 ```
