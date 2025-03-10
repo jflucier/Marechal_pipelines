@@ -189,7 +189,7 @@ def openfold_dag(dsl, list_of_multimers, samplesheet, task_conf_func):
               else
                   config_preset="model_{model}_multimer_v3"
                   model_pkl=$__task_output_dir/predictions/${{fold_name}}_model_{model}_multimer_v3_output_dict.pkl
-              fi
+              fi                            
 
               $python_bin -u $OPENFOLD_HOME/run_pretrained_openfold.py \\
                 $in_dir \\
@@ -199,7 +199,6 @@ def openfold_dag(dsl, list_of_multimers, samplesheet, task_conf_func):
                 --model_device "cuda:$SLURM_JOB_GPUS" \\
                 --output_dir $__task_output_dir \\
                 --jax_param_path $OPENFOLD_HOME/openfold/resources/params/params_${{config_preset}}.npz \\
-                --long_sequence_inference \\
                 --save_outputs
 
               echo "generate JSON for model {model}"
@@ -235,27 +234,49 @@ def openfold_dag(dsl, list_of_multimers, samplesheet, task_conf_func):
                         
             align_task_out=$__pipeline_instance_dir/output/of-align.${multimer_name}
             
+            if [ "$protein_count" = "1" ]; then
+            
+               input_pkl=$__task_output_dir/${fold_name}_model_1_ptm_feature_dict.pickle
+               plot_basename=$__task_output_dir/${fold_name}_relaxed
+                                             
+               model_1_pkl=$__task_output_dir/predictions/${fold_name}_model_1_ptm_output_dict.pkl
+               model_2_pkl=$__task_output_dir/predictions/${fold_name}_model_2_ptm_output_dict.pkl
+               model_3_pkl=$__task_output_dir/predictions/${fold_name}_model_3_ptm_output_dict.pkl
+            else         
+               input_pkl=$__task_output_dir/${fold_name}_model_1_multimer_v3_feature_dict.pickle
+               plot_basename = $__task_output_dir/${fold_name}_multimer_v3_relaxed                              
+                     
+               model_1_pkl=$__task_output_dir/predictions/${fold_name}_model_1_multimer_v3_output_dict.pkl
+               model_2_pkl=$__task_output_dir/predictions/${fold_name}_model_2_multimer_v3_output_dict.pkl
+               model_3_pkl=$__task_output_dir/predictions/${fold_name}_model_3_multimer_v3_output_dict.pkl
+            fi                            
+            
             $python_bin -u ${OPENFOLD_HOME}/scripts/generate_coverage_plot.py \\
-              --input_pkl $__task_output_dir/${fold_name}_model_1_multimer_v3_feature_dict.pickle \\
+              --input_pkl $input_pkl \\
               --output_dir $__task_output_dir/predictions/ \\
-              --basename "$__task_output_dir/${fold_name}_multimer_v3_relaxed"              
+              --basename $plot_basename
    
             echo "running AF2multimer-analysis on $__task_output_dir/predictions/"                        
             touch $__task_output_dir/predictions/${fold_name}.done.txt            
             mkdir -p $__task_output_dir/predictions/unrelaxed            
             mv $__task_output_dir/predictions/*unrelaxed.pdb $__task_output_dir/predictions/unrelaxed/ || true
-            $python_bin -u $colabfold_analysis_script \\
-                --pred_folder=$__task_output_dir/predictions \\
-                --out_folder=$__task_output_dir \\
-                --multimer_name=$multimer_name \\
-                --fasta=$align_task_out/${fold_name}.fa             
             
+            if [ "$protein_count" = "1" ]; then
+              echo "will skip colabfold_analysis_script"
+            else   
+              $python_bin -u $colabfold_analysis_script \\
+                 --pred_folder=$__task_output_dir/predictions \\
+                 --out_folder=$__task_output_dir \\
+                 --multimer_name=$multimer_name \\
+                 --fasta=$align_task_out/${fold_name}.fa
+            fi                              
+                        
             echo "generating PAE, plDDT plots and JSON files"
             $python_bin -u ${OPENFOLD_HOME}/scripts/generate_pae_plddt_plot.py \\
               --fasta $align_task_out/${fold_name}.fa \\
-              --model1_pkl $__task_output_dir/predictions/${fold_name}_model_1_multimer_v3_output_dict.pkl \\
-              --model2_pkl $__task_output_dir/predictions/${fold_name}_model_2_multimer_v3_output_dict.pkl \\
-              --model3_pkl $__task_output_dir/predictions/${fold_name}_model_3_multimer_v3_output_dict.pkl \\
+              --model1_pkl $model_1_pkl \\
+              --model2_pkl $model_2_pkl \\
+              --model3_pkl $model_3_pkl \\
               --output_dir $__task_output_dir/predictions/ \\
               --basename "${fold_name}" \\
               --interface $__task_output_dir/interfaces.csv
@@ -285,6 +306,8 @@ def collabfold_dag(dsl, list_of_multimers, samplesheet, collabfold_task_conf_fun
 
     colabfold_search_slurm_options = ["--time=24:00:00 --mem=40G --cpus-per-task=8"]
 
+    colabfold_fold_slurm_options = ["--time=8:00:00 --mem=120G --cpus-per-task=12 --gpus-per-node=1"]
+
     for multimer in list_of_multimers:
 
         multimer_name = multimer.multimer_name()
@@ -312,13 +335,11 @@ def collabfold_dag(dsl, list_of_multimers, samplesheet, collabfold_task_conf_fun
             mkdir -p $HOME/.licenses/
             touch $HOME/.licenses/intel
 
-            module load StdEnv/2020 gcc/9.3.0 cuda/11.4 openmpi/4.0.3 openmm/8.0.0 hh-suite/3.3.0 hmmer/3.2.1
+            module load StdEnv/2020 gcc/9.3.0 cuda/11.4 openmpi/4.0.3 openmm/8.0.0 hh-suite/3.3.0 hmmer/3.2.1 mmseqs2/14-7e284
 
             TE=$TASK_VENV/bin/activate                      
             echo "will activate env: $TE"
-            source $TE                                                
-
-            export PATH=$remote_base_dir/programs/mmseqs/bin:$PATH
+            source $TE
 
             echo "running colabfold search"
             colabfold_search \\
@@ -348,7 +369,8 @@ def collabfold_dag(dsl, list_of_multimers, samplesheet, collabfold_task_conf_fun
 
             colabfold_batch_task = dsl.task(
                 key=f"cf-fold.{multimer_name}",
-                is_slurm_array_child=True
+                is_slurm_array_child=True,
+                task_conf=collabfold_task_conf_func(colabfold_fold_slurm_options)
             ).inputs(
                 a3m=search_task.outputs.a3m,
                 colabfold_analysis_script=dsl.file(colabfold_analysis.code_path()),
@@ -365,8 +387,8 @@ def collabfold_dag(dsl, list_of_multimers, samplesheet, collabfold_task_conf_fun
                 
                 mkdir -p $HOME/.licenses/
                 touch $HOME/.licenses/intel                
-
-                module load StdEnv/2020 gcc/9.3.0 cuda/11.4 openmpi/4.0.3 openmm/8.0.0 hh-suite/3.3.0 hmmer/3.2.1
+                
+                module load StdEnv/2020 gcc/9.3.0 cuda/11.4 openmpi/4.0.3 openmm/8.0.0 hh-suite/3.3.0 hmmer/3.2.1 mmseqs2/14-7e284
 
                 source $TASK_VENV/bin/activate
 
@@ -374,8 +396,7 @@ def collabfold_dag(dsl, list_of_multimers, samplesheet, collabfold_task_conf_fun
                 export XLA_PYTHON_CLIENT_MEM_FRACTION="4.0"
                 export XLA_PYTHON_CLIENT_ALLOCATOR="platform"
                 export TF_FORCE_GPU_ALLOW_GROWTH="true"                                                    
-
-                export PATH=$remote_base_dir/programs/mmseqs/bin:$PATH
+                
 
                 echo "running colabfold fold"
                 colabfold_batch \\
@@ -406,7 +427,7 @@ def collabfold_dag(dsl, list_of_multimers, samplesheet, collabfold_task_conf_fun
         for match in dsl.query_all_or_nothing("cf-fold.*", state="ready"):
             yield dsl.task(
                 key=f"cf-fold-array",
-                task_conf=["--time=8:00:00 --mem=120G --cpus-per-task=12 --gpus-per-node=1"]
+                task_conf=collabfold_task_conf_func(colabfold_fold_slurm_options)
             ).slurm_array_parent(
                 children_tasks=match.tasks
             )()

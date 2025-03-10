@@ -1,5 +1,5 @@
 import os
-from itertools import islice
+from itertools import islice, groupby
 from dataclasses import dataclass
 from typing import List
 
@@ -26,6 +26,9 @@ class Multimer:
             f"{protein.name}_{protein.n_occurences}"
             for protein in self.proteins
         ])
+
+    def __str__(self):
+        return self.multimer_name()
 
     def generate_fasta_colabfold(self, fa_out):
 
@@ -109,7 +112,7 @@ class Multimer:
                         out.write('#\n')
 
 
-def parse_multimer_list_from_samplesheet(samplesheet, single_multimer_name=None, include_single_prots=False) -> List[Multimer]:
+def parse_multimer_list_from_samplesheet(samplesheet, single_multimer_name=None, include_single_prots=True) -> List[Multimer]:
 
     def rows():
         with open(samplesheet) as f:
@@ -131,6 +134,8 @@ def parse_multimer_list_from_samplesheet(samplesheet, single_multimer_name=None,
                 i = iter(row)
                 while prot_rows := list(islice(i, 4)):
                     name = prot_rows[0]
+                    if "-" in name:
+                        raise Exception(f"illegal prot name on line {line_number}, can't use '-' ")
                     n_occurences = int(prot_rows[1])
                     pdb = prot_rows[2]
                     seq = prot_rows[3]
@@ -154,6 +159,20 @@ def parse_multimer_list_from_samplesheet(samplesheet, single_multimer_name=None,
                     break
 
     res = list(g())
+
+    def check_duplicates():
+        def mn(m):
+            return m.multimer_name()
+        for n, multimers in groupby(sorted(res, key=mn), key=mn):
+            multimers = list(multimers)
+            if len(multimers) > 1:
+                lines = [str(m.line_number_in_samplesheet) for m in multimers]
+                raise Exception(
+                    f"duplicate multimer names {n} in {samplesheet}, at lines {','.join(lines)}"
+                )
+
+    check_duplicates()
+
     if single_multimer_name is None:
         return res
 

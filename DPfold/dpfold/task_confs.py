@@ -36,15 +36,17 @@ def narval_task_conf(sbatch_options):
 
 def gh_task_conf(sbatch_options):
 
-    remote_pipeline_base_dir = "/tank/maxl"
+    #remote_pipeline_base_dir = "/tank/maxl"
 
-    #programs_base_dir = "/home/def-marechal/programs"
-    #conda_env_path = f"{programs_base_dir}/conda/envs/openfold_env_1.12"
-    #openfold_home = f"{programs_base_dir}/openfold"
+    ssh_host_dir = os.environ.get("DPFOLD_REMOTE_SSH_HOST_DIR")
 
-    #programs_base_dir = "/home/def-marechal/programs"
-    #conda_env_path = f"{programs_base_dir}/conda/envs/openfold_env_2.1.0"
-    #openfold_home = f"{programs_base_dir}/openfold-pl_upgrades"
+    if ssh_host_dir is None:
+        raise Exception("DPFOLD_REMOTE_SSH_HOST_DIR environment variable not set")
+
+    if ":" not in ssh_host_dir:
+        raise Exception("bad format of DPFOLD_REMOTE_SSH_HOST_DIR, must be <ssh_user_and_host>:<remote_dir>")
+
+    ssh_host, remote_pipeline_base_dir = ssh_host_dir.split(":")
 
     programs_base_dir = "/home/def-marechal/programs"
     conda_env_path = f"{programs_base_dir}/conda/envs/openfold_env_1.13"
@@ -65,7 +67,7 @@ def gh_task_conf(sbatch_options):
             "DRYPIPE_TASK_DEBUG": "True",
             "CUDA_LAUNCH_BLOCKING": "1"
         },
-        ssh_remote_dest=f"gh1301:{remote_pipeline_base_dir}",
+        ssh_remote_dest=f"{ssh_host}:{remote_pipeline_base_dir}",
         python_bin=f"{conda_env_path}/bin/python3",
         run_as_group="def-marechal"
     )
