@@ -5,7 +5,7 @@ cd ..
 . venv/bin/activate
 
 export PYTHONPATH=$PWD/DPfold
-export REMOTE_LOGIN=maxl@narval.computecanada.ca
+export REMOTE_LOGIN=maxl@robot.narval.computecanada.ca
 export SLURM_ACCOUNT=def-marechal
 
 cd -
