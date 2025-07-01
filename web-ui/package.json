@@ -1,0 +1,16 @@
+{
+  "scripts": {
+    "zdev": "concurrently --kill-others \"npm run bundle-watch\"",
+    "build": "node build.mjs",
+    "dev": "node buildWatch.mjs"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@asn.aeb/esbuild-css-modules-plugin": "^0.1.9",
+    "concurrently": "^9.1.2",
+    "esbuild": "0.24.0"
+  }
+}
