@@ -4,3 +4,6 @@
 [submodule "DryPipe"]
 	path = DryPipe
 	url = git@github.com:calculs-ca/DryPipe.git
+[submodule "WebGasket"]
+	path = WebGasket
+	url = git@github.com:calculs-ca/WebGasket.git

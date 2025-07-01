@@ -166,5 +166,12 @@ example/RFWD3.2_PCNA.3
 *.old
 *.bak
 .idea/
-/example/tiny/.drypipe/
-/example/tiny/output/
+
+/example/tiny-colabfold/.drypipe/
+/example/tiny-colabfold/output/
+/example/tiny-openfold/.drypipe/
+/example/tiny-openfold/output/
+/web-ui/node_modules/
+/web-ui/build/
+/test-web-instances-dir/
+/test-web-instances-dir/
