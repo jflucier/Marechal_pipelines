@@ -10,17 +10,12 @@
         "class": "logging.FileHandler",
         "level": "INFO",
         "formatter": "simple",
-        "filename": "$RVASC_LOG_FILE"
+        "filename": "$WEB_GASKET_LOG_FILE"
     }
   },
   "loggers": {
     "root": {
       "level": "INFO",
-      "handlers": ["file"]
-    },
-    "rvasc": {
-      "level": "INFO",
-      "propagate": 0,
       "handlers": ["file"]
     },
     "uvicorn.access": {
