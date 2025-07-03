@@ -146,6 +146,19 @@ def init_app():
     if logging_conf is not None and Path(logging_conf).exists():
         with open(logging_conf, "r") as f:
             log_conf_json = json.load(f)
+
+            handlers = log_conf_json["handlers"]
+
+            for k, handler in handlers.items():
+                handler_class = handler["class"]
+                if handler_class == "logging.FileHandler":
+                    filename = handler.get("filename")
+                    if filename is None or filename == "":
+                        raise Exception(f"logging.FileHandler '{k}' has no filename attribute in {logging_conf}")
+                    if "$" in filename:
+                        filename = os.path.expandvars(filename)
+                        handler["filename"] = os.path.expandvars(filename)
+
     else:
         log_conf_json = {
           "version": 1,
