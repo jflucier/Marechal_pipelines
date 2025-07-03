@@ -9,13 +9,14 @@ import uvicorn
 from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 
+from dpfold.dag import colabfold_pipeline, parse_and_validate_input_files
 from dry_pipe.pipeline import PipelineType
 from dry_pipe.service import PipelineRunner
 
 from web_gasket.routes import init_page_and_upload_routes, create_sub_api
 from web_gasket.auth import SqliteAuthenticator
 
-from dpfold.dag import colabfold_pipeline, parse_and_validate_input_files
+
 import logging
 import logging.config
 
