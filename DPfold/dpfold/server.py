@@ -190,8 +190,6 @@ def start_pipeline_runner():
 
 def init_app():
 
-    init_logging()
-
     app = FastAPI()
 
     app.add_middleware(
@@ -255,6 +253,8 @@ def init_app():
 
 
 def run():
+
+    init_logging()
 
     WEB_APP_PORT = os.environ.get("WEB_APP_PORT")
 
