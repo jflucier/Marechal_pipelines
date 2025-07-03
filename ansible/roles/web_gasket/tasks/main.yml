@@ -1,0 +1,25 @@
+
+- name: apt installs
+  become: yes
+  ansible.builtin.apt:
+    pkg:
+    - sqlite3
+
+- name: init auth db if not exists
+  ansible.builtin.command: "/web-gasket_venv/bin/python3 /web-gasket/WebGasket/web_gasket/auth.py init-db /home/{{os_user}}/web-gasket-auth.db"
+  become: yes
+  become_user: "{{os_user}}"
+  args:
+    creates: "/home/{{os_user}}/web-gasket-auth.db"
+
+- name: add or create admin account {{admin_email}}
+  ansible.builtin.command: "/web-gasket_venv/bin/python3 /web-gasket/WebGasket/web_gasket/auth.py add-user /home/{{os_user}}/web-gasket-auth.db {{admin_email}}"
+
+- name: create dirs
+  become: yes
+  ansible.builtin.file:
+    path: "{{item}}"
+    state: directory
+    owner: "{{os_user}}"
+    group: "{{os_user}}"
+  loop: "{{ work_dirs }}"

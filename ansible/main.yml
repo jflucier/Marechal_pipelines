@@ -1,0 +1,43 @@
+
+---
+
+- hosts: [web_gasket]
+  vars:
+    wg_upload_dir: "{{web_gasket_data_dir}}/.tmp-upload"
+    wg_instances_dir: "{{web_gasket_data_dir}}/pipeline-instances"
+  become: yes
+  gather_facts: no
+  roles:
+    - role: python_service
+      vars:
+        service_name: "web-gasket"
+        log_dir: "/var/log/web-gasket"
+        service_exec_cmd: "/web-gasket_venv/bin/uvicorn dpfold.server:init_app --port=8000 --host=0.0.0.0"
+        git_repo: "git@github.com:jflucier/Marechal_pipelines.git"
+        branch: "{{git_branch}}"
+        reqs: "/web-gasket/requirements-web-gasket.txt"
+        env_vars:
+          - "PYTHONPATH=/web-gasket"
+          - "PIPELINE_INSTANCES_DIR={{wg_instances_dir}}"
+          - "WEB_GASKET_TEMP_FILE_UPLOAD_DIR={{wg_upload_dir}}"
+          - "WEB_SESSION_KEY='{{web_session_key}}'"
+          - "LOGGING_CONF=/web-gasket/log-conf.json"
+
+    - role: web_gasket
+      when: False
+      vars:
+        os_user: "web-gasket"
+        work_dirs:
+          - "{{web_gasket_data_dir}}"
+          - "{{wg_upload_dir}}"
+          - "{{wg_instances_dir}}/single-cell"
+          - "{{wg_instances_dir}}/phage-display"
+
+    - role: javascript_spa
+      when: False
+      vars:
+        service_user: web-gasket
+        src: "../web-ui/build/*"
+        dst: /web-gasket/web-ui/build
+        spa_dir: "../web-ui"
+
