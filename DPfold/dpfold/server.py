@@ -243,7 +243,7 @@ def init_app():
 
     authenticator.init_routes(api, app, page_func)
 
-    web_artifacts_dir = Path(Path(__file__).parent.parent, "web-ui", "build")
+    web_artifacts_dir = Path(Path(__file__).parent.parent.parent, "web-ui", "build")
 
     init_page_and_upload_routes(app, authenticator, page_func, web_artifacts_dir)
 
