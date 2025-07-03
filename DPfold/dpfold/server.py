@@ -16,7 +16,11 @@ from web_gasket.routes import init_page_and_upload_routes, create_sub_api
 from web_gasket.auth import SqliteAuthenticator
 
 from dpfold.dag import colabfold_pipeline, parse_and_validate_input_files
+import logging
+import logging.config
 
+
+logger = logging.getLogger(__name__)
 
 
 def parse_permissions(user_email):
@@ -158,6 +162,8 @@ def init_app():
                     if "$" in filename:
                         filename = os.path.expandvars(filename)
                         handler["filename"] = os.path.expandvars(filename)
+
+        logger.info("using logging config file '%s'", logging_conf)
 
     else:
         log_conf_json = {
