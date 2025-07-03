@@ -22,6 +22,56 @@ import logging.config
 
 logger = logging.getLogger(__name__)
 
+def init_logging():
+
+    logging_conf = os.environ.get("LOGGING_CONF")
+
+    if logging_conf is not None and Path(logging_conf).exists():
+        with open(logging_conf, "r") as f:
+            log_conf_json = json.load(f)
+
+            handlers = log_conf_json["handlers"]
+
+            for k, handler in handlers.items():
+                handler_class = handler["class"]
+                if handler_class == "logging.FileHandler":
+                    filename = handler.get("filename")
+                    if filename is None or filename == "":
+                        raise Exception(f"logging.FileHandler '{k}' has no filename attribute in {logging_conf}")
+                    if "$" in filename:
+                        filename = os.path.expandvars(filename)
+                        handler["filename"] = os.path.expandvars(filename)
+
+            for n, l in  log_conf_json["loggers"].items():
+                if n == logger.name:
+                    logger.setLevel(l["level"])
+
+        logger.info("using logging config file '%s'", logging_conf)
+
+    else:
+        log_conf_json = {
+          "version": 1,
+          "formatters": {
+            "simple": {
+              "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+            }
+          },
+          "handlers": {
+            "console": {
+                "class": "logging.StreamHandler",
+                "level": "DEBUG",
+                "formatter": "simple",
+                "stream": "ext://sys.stdout"
+            }
+          },
+          "root": {
+            "level": "DEBUG",
+            "handlers": ["console"]
+          }
+        }
+
+    logging.config.dictConfig(log_conf_json)
+
 
 def parse_permissions(user_email):
 
@@ -145,51 +195,7 @@ def start_pipeline_runner():
 
 def init_app():
 
-    logging_conf = os.environ.get("LOGGING_CONF")
-
-    if logging_conf is not None and Path(logging_conf).exists():
-        with open(logging_conf, "r") as f:
-            log_conf_json = json.load(f)
-
-            handlers = log_conf_json["handlers"]
-
-            for k, handler in handlers.items():
-                handler_class = handler["class"]
-                if handler_class == "logging.FileHandler":
-                    filename = handler.get("filename")
-                    if filename is None or filename == "":
-                        raise Exception(f"logging.FileHandler '{k}' has no filename attribute in {logging_conf}")
-                    if "$" in filename:
-                        filename = os.path.expandvars(filename)
-                        handler["filename"] = os.path.expandvars(filename)
-
-        logger.info("using logging config file '%s'", logging_conf)
-
-    else:
-        log_conf_json = {
-          "version": 1,
-          "formatters": {
-            "simple": {
-              "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-            }
-          },
-          "handlers": {
-            "console": {
-                "class": "logging.StreamHandler",
-                "level": "DEBUG",
-                "formatter": "simple",
-                "stream": "ext://sys.stdout"
-            }
-          },
-          "root": {
-            "level": "DEBUG",
-            "handlers": ["console"]
-          }
-        }
-
-    logging.config.dictConfig(log_conf_json)
-
-
+    init_logging()
 
     app = FastAPI()
 
