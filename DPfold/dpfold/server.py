@@ -259,6 +259,8 @@ def run():
 
     port = 8000 if WEB_APP_PORT is None else int(WEB_APP_PORT)
 
+    logger.info(f"starting web app on port {port}")
+
     uvicorn.run(app="dpfold.server:init_app", host="0.0.0.0", port=port, workers=4)
 
 if __name__ == '__main__':
