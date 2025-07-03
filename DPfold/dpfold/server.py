@@ -20,8 +20,6 @@ import logging
 import logging.config
 
 
-logger = logging.getLogger(__name__)
-
 def init_logging():
 
     logging_conf = os.environ.get("LOGGING_CONF")
@@ -42,10 +40,7 @@ def init_logging():
                         filename = os.path.expandvars(filename)
                         handler["filename"] = os.path.expandvars(filename)
 
-            for n, l in  log_conf_json["loggers"].items():
-                if n == logger.name:
-                    logger.setLevel(l["level"])
-
+        logger = logging.getLogger(__name__)
         logger.info("using logging config file '%s'", logging_conf)
 
     else:
@@ -265,6 +260,7 @@ def run():
 
     port = 8000 if WEB_APP_PORT is None else int(WEB_APP_PORT)
 
+    logger = logging.getLogger(__name__)
     logger.info(f"starting web app on port {port}")
 
     uvicorn.run(app="dpfold.server:init_app", host="0.0.0.0", port=port, workers=4)
