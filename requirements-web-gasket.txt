@@ -4,3 +4,4 @@ fastapi[standard]==0.115.2
 uvicorn==0.31.1
 tuspyserver==2.1.0
 itsdangerous==2.2.0
+bcrypt==4.3.0
