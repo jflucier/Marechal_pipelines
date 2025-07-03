@@ -1,3 +1,4 @@
+import json
 import logging
 import time
 import os
@@ -140,6 +141,37 @@ def start_pipeline_runner():
 
 def init_app():
 
+    logging_conf = os.environ.get("LOGGING_CONF")
+
+    if logging_conf is not None and Path(logging_conf).exists():
+        with open(logging_conf, "r") as f:
+            log_conf_json = json.load(f)
+    else:
+        log_conf_json = {
+          "version": 1,
+          "formatters": {
+            "simple": {
+              "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+            }
+          },
+          "handlers": {
+            "console": {
+                "class": "logging.StreamHandler",
+                "level": "DEBUG",
+                "formatter": "simple",
+                "stream": "ext://sys.stdout"
+            }
+          },
+          "root": {
+            "level": "DEBUG",
+            "handlers": ["console"]
+          }
+        }
+
+    logging.config.dictConfig(log_conf_json)
+
+
+
     app = FastAPI()
 
     app.add_middleware(
@@ -204,36 +236,11 @@ def init_app():
 
 def run():
 
-    logging_conf = os.environ.get("LOGGING_CONF")
-
-    if logging_conf is None:
-        c = {
-          "version": 1,
-          "formatters": {
-            "simple": {
-              "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-            }
-          },
-          "handlers": {
-            "console": {
-                "class": "logging.StreamHandler",
-                "level": "DEBUG",
-                "formatter": "simple",
-                "stream": "ext://sys.stdout"
-            }
-          },
-          "root": {
-            "level": "DEBUG",
-            "handlers": ["console"]
-          }
-        }
-        logging.config.dictConfig(c)
-
     WEB_APP_PORT = os.environ.get("WEB_APP_PORT")
 
     port = 8000 if WEB_APP_PORT is None else int(WEB_APP_PORT)
 
-    uvicorn.run(app="DPfold.server:init_app", host="0.0.0.0", port=port, workers=4)
+    uvicorn.run(app="dpfold.server:init_app", host="0.0.0.0", port=port, workers=4)
 
 if __name__ == '__main__':
 

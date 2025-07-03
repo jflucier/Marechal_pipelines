@@ -1,13 +1,46 @@
 import glob
 import os.path
 from pathlib import Path
-
-
+import json
 from dry_pipe import DryPipe
 
 from dpfold import colabfold_analysis
 from dpfold.multimer import parse_multimer_list_from_samplesheet
 from dpfold.multimer import file_path as multimer_code_file
+
+
+def parse_and_validate_input_files(pipeline_instance_dir):
+
+    samplesheet = os.path.join(pipeline_instance_dir, "samplesheet.tsv")
+    pipeline_instance_args_file = os.path.join(pipeline_instance_dir, "args.json")
+
+    if os.path.exists(pipeline_instance_args_file):
+        with open(pipeline_instance_args_file) as f:
+            pipeline_instance_args = json.loads(f.read())
+    else:
+        pipeline_instance_args = None
+
+    samplesheet_parse_exception = None
+
+    try:
+        multimers = parse_multimer_list_from_samplesheet(samplesheet)
+    except Exception as e:
+        multimers = None
+        samplesheet_parse_exception = e
+
+    def go():
+
+        if pipeline_instance_args is None:
+            yield "MISSING_ARG_FILE", f"could not find pipeline_instance_args_file {pipeline_instance_args_file}"
+
+        if "CC_GROUP" not in pipeline_instance_args:
+            yield "MISSING_ARG", "'CC_GROUP' must be specified in Pipeline Args"
+
+        if samplesheet_parse_exception is not None:
+            yield "MISSING_ARG_FILE", f"could not parse {samplesheet}"
+
+
+    return dict(go()), samplesheet, multimers, pipeline_instance_args
 
 
 @DryPipe.python_call()
@@ -479,14 +512,15 @@ def combined_pipeline_dag(dsl, openfold_task_conf_func, collabfold_task_conf_fun
 
 def colabfold_pipeline():
 
-    from dpfold.task_confs import narval_task_conf
+    from dpfold.task_confs import cc_remote_task_conf_func_func
 
     def p(dsl):
-        samplesheet = os.path.join(dsl.pipeline_instance_dir(), "samplesheet.tsv")
 
-        multimers = parse_multimer_list_from_samplesheet(samplesheet)
+        errors, samplesheet, multimers, pipeline_instance_args = parse_and_validate_input_files(dsl.pipeline_instance_dir())
 
-        yield from collabfold_dag(dsl, multimers, samplesheet, narval_task_conf)
+        tc = cc_remote_task_conf_func_func(pipeline_instance_args)
+
+        yield from collabfold_dag(dsl, multimers, samplesheet, tc)
 
         for _ in dsl.query_all_or_nothing("colabfold_batch.*"):
             yield from aggregate_report_task(dsl)

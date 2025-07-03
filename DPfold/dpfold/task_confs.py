@@ -7,6 +7,49 @@ from dry_pipe import TaskConf
 this_python_root = Path(__file__).parent.parent
 
 
+def cc_remote_task_conf_func_func(pipeline_instance_args):
+
+    cc_username = os.environ["CC_USERNAME"]
+    use_cc_robot = os.environ.get("USE_CC_ROBOT") == "True"
+
+    cc_cluster = pipeline_instance_args["CC_CLUSTER"]
+
+    if use_cc_robot:
+        cc_host = f"robot.{cc_cluster}.computecanada.ca"
+    else:
+        cc_host = f"{cc_cluster}.computecanada.ca"
+
+    cc_group = pipeline_instance_args["CC_GROUP"]
+    slurm_account = pipeline_instance_args["SLURM_ACCOUNT"]
+
+    remote_base_dir = f"/home/{cc_username}/projects/{cc_group}"
+
+    remote_pipeline_base_dir = f"{remote_base_dir}/pipelines-work-dir"
+
+    return lambda sbatch_options: TaskConf(
+        executer_type="slurm",
+        slurm_account=slurm_account,
+        sbatch_options=sbatch_options,
+        extra_env={
+            "MUGQIC_INSTALL_HOME": "/cvmfs/soft.mugqic/CentOS6",
+            "DRYPIPE_TASK_DEBUG": "True",
+            "PYTHONPATH": f"$__pipeline_instance_dir/external-file-deps{this_python_root}",
+            "TASK_VENV": f"{remote_base_dir}/programs/colabfold_af2.3.2_env",
+            "remote_base_dir": remote_base_dir,
+            "collabfold_db": f"{remote_base_dir}/programs/colabfold_db",
+            "HOME": "$__task_output_dir/fake_home"
+        },
+        ssh_remote_dest=f"{cc_username}@{cc_host}:{remote_pipeline_base_dir}",
+        python_bin=f"{remote_base_dir}/programs/colabfold_af2.3.2_env/bin/python3",
+        #TODO: make this work:
+        #run_as_group=slurm_account
+        run_as_group=None
+    )
+
+
+
+
+
 def narval_task_conf(sbatch_options):
     remote_login = os.environ["REMOTE_LOGIN"]
 
