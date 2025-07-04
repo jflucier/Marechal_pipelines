@@ -2,6 +2,7 @@ import React from 'react'
 
 import {createApp} from "@web-gasket/App.jsx"
 import DPFoldArgsEditor from "./DPFoldArgsEditor";
+import * as thisApi from "./rest";
 
 const RenderPipelineSettingsEditor = ({pipelineInstance, pipelineArgsDispatcher, renderGeneric}) => {
 
@@ -18,4 +19,4 @@ const RenderPipelineSettingsEditor = ({pipelineInstance, pipelineArgsDispatcher,
     }
 }
 
-createApp(RenderPipelineSettingsEditor)
+createApp(RenderPipelineSettingsEditor, thisApi)

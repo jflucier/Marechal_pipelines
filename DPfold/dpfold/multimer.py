@@ -136,10 +136,13 @@ def parse_multimer_list_from_samplesheet(samplesheet, single_multimer_name=None,
                     name = prot_rows[0]
                     if "-" in name:
                         raise Exception(f"illegal prot name on line {line_number}, can't use '-' ")
-                    n_occurences = int(prot_rows[1])
-                    pdb = prot_rows[2]
-                    seq = prot_rows[3]
-                    yield Protein(name, n_occurences, pdb, seq)
+                    try:
+                        n_occurences = int(prot_rows[1])
+                        pdb = prot_rows[2]
+                        seq = prot_rows[3]
+                        yield Protein(name, n_occurences, pdb, seq)
+                    except IndexError:
+                        raise Exception(f"to few columns in line {line_number}")
 
             m = Multimer(list(prots_in_row()), line_number)
 

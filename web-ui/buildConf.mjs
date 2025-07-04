@@ -1,10 +1,6 @@
 
 import path from 'path'
-import {cssModulesPlugin} from "@asn.aeb/esbuild-css-modules-plugin";
-
-//import pkg from 'esbuild-plugin-external-global';
-//const {externalGlobalPlugin} = pkg;
-
+import {cssModulesPlugin} from "@asn.aeb/esbuild-css-modules-plugin"
 
 
 
@@ -29,12 +25,6 @@ export const conf = {
     bundle: true,
     sourcemap: true,
     plugins: [
-        /*
-        externalGlobalPlugin({
-            'react': 'window.React',
-            'react-dom': 'window.ReactDOM'
-        }),
-         */
         aliasPlugin, cssModulesPlugin({
         // Optional. Will emit a `.css` bundle containing all of the imported css.
         emitCssBundle: {

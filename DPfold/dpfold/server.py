@@ -10,6 +10,7 @@ from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 
 from dpfold.dag import colabfold_pipeline, parse_and_validate_input_files
+from dpfold.multimer import parse_multimer_list_from_samplesheet
 from dry_pipe.pipeline import PipelineType
 from dry_pipe.service import PipelineRunner
 
@@ -137,9 +138,9 @@ def start_pipeline_runner():
 
         common_schemas = {
             "schema": {
-                "CC_CLUSTER": ['enum', 'narval'],
-                "CC_GROUP": "string",
-                "SLURM_ACCOUNT": "string"
+                "cc_cluster": ['enum', 'narval'],
+                "cc_group": "string",
+                "cc_allocation": "string"
             }
         }
 
@@ -163,8 +164,9 @@ def start_pipeline_runner():
                     validate_dp_fold,
                     common_schemas,
                     {
-                        "CC_CLUSTER": "narval",
-                        "CC_GROUP": None
+                        "cc_allocation": None,
+                        "cc_group": None,
+                        "cc_cluster": None
                     },
                     dpfold_completion_func
                )
@@ -205,6 +207,32 @@ def init_app():
 
 
     api = create_sub_api(pipeline_runner)
+
+    @api.get("/dpFoldFilesStatus/{pid:path}")
+    async def dp_files_status(pid: str):
+
+        samplesheet = Path(f"/{pid}", "samplesheet.tsv")
+
+        if samplesheet.exists():
+
+            try:
+                parse_multimer_list_from_samplesheet(samplesheet)
+                samplesheet_parse_exception = None
+            except Exception as e:
+                samplesheet_parse_exception = e
+
+            return {
+                "name": "samplesheet.tsv",
+                "exists": True,
+                "isValid": samplesheet_parse_exception is None,
+                "errors": None if samplesheet_parse_exception is None else str(samplesheet_parse_exception)
+            }
+
+        return {
+            "name": "samplesheet.tsv",
+            "exists": False
+        }
+
 
     user_auth_db = os.environ.get("USER_AUTH_DB")
 
