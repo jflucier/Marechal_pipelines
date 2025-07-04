@@ -6,14 +6,14 @@
     - sqlite3
 
 - name: init auth db if not exists
-  ansible.builtin.command: "/web-gasket_venv/bin/python3 /web-gasket/WebGasket/web_gasket/auth.py init-db /home/{{os_user}}/web-gasket-auth.db"
+  ansible.builtin.command: "/web-gasket_venv/bin/python3 /web-gasket/WebGasket/web_gasket/auth.py init-db {{wg_auth_db}}"
   become: yes
   become_user: "{{os_user}}"
   args:
     creates: "/home/{{os_user}}/web-gasket-auth.db"
 
 - name: add or create admin account {{admin_email}}
-  ansible.builtin.command: "/web-gasket_venv/bin/python3 /web-gasket/WebGasket/web_gasket/auth.py add-user /home/{{os_user}}/web-gasket-auth.db {{admin_email}}"
+  ansible.builtin.command: "/web-gasket_venv/bin/python3 /web-gasket/WebGasket/web_gasket/auth.py add-user {{wg_auth_db}} {{admin_email}}"
 
 - name: create dirs
   become: yes

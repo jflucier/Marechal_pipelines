@@ -2,11 +2,22 @@
 - name: npm run build
   become: no
   ansible.builtin.command:
-    cmd: "npm run build"
+    cmd: "{{item}}"
     chdir: "{{spa_dir}}"
   register: script_output
+  with_items:
+    - "node_modules/.bin/tailwindcss -i ./src/input.css -o ./build/style.css"
+    - "node build.mjs"
   delegate_to: localhost
 
+
+- name: create dirs
+  become: yes
+  ansible.builtin.file:
+    path: "{{dst}}"
+    state: directory
+    owner: "{{service_user}}"
+    group: "{{service_user}}"
 
 - name: copy bundles
   ansible.builtin.copy:

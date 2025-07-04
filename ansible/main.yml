@@ -5,36 +5,40 @@
   vars:
     wg_upload_dir: "{{web_gasket_data_dir}}/.tmp-upload"
     wg_instances_dir: "{{web_gasket_data_dir}}/pipeline-instances"
+    wg_auth_db: "/home/web-gasket/web-gasket-auth.db"
   become: yes
   gather_facts: no
   roles:
     - role: python_service
+      when: True
       vars:
         service_name: "web-gasket"
         log_dir: "/var/log/web-gasket"
-        service_exec_cmd: "/web-gasket_venv/bin/uvicorn dpfold.server:init_app --port=8000 --host=0.0.0.0"
+        service_exec_cmd: "/web-gasket_venv/bin/python3 /web-gasket/DPfold/dpfold/server.py"
         git_repo: "git@github.com:jflucier/Marechal_pipelines.git"
         branch: "{{git_branch}}"
         reqs: "/web-gasket/requirements-web-gasket.txt"
         env_vars:
-          - "PYTHONPATH=/web-gasket"
+          - "PYTHONPATH=/web-gasket/DryPipe:/web-gasket/WebGasket:/web-gasket/DPfold"
           - "PIPELINE_INSTANCES_DIR={{wg_instances_dir}}"
           - "WEB_GASKET_TEMP_FILE_UPLOAD_DIR={{wg_upload_dir}}"
           - "WEB_SESSION_KEY='{{web_session_key}}'"
           - "LOGGING_CONF=/web-gasket/log-conf.json"
+          - "USER_AUTH_DB={{wg_auth_db}}"
+          - "WEB_GASKET_LOG_FILE={{log_dir}}/app.log"
+          - "WEB_APP_PORT=8000"
 
     - role: web_gasket
-      when: False
+      when: True
       vars:
         os_user: "web-gasket"
         work_dirs:
           - "{{web_gasket_data_dir}}"
           - "{{wg_upload_dir}}"
-          - "{{wg_instances_dir}}/single-cell"
-          - "{{wg_instances_dir}}/phage-display"
+          - "{{wg_instances_dir}}/dp-fold"
 
     - role: javascript_spa
-      when: False
+      when: True
       vars:
         service_user: web-gasket
         src: "../web-ui/build/*"

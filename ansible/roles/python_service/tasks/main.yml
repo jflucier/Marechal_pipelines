@@ -1,3 +1,21 @@
+
+
+- name: "create service env file"
+  ansible.builtin.copy:
+    content: |
+          {% for item in env_vars -%}                                               
+          {{ item }}                                                            
+          {% endfor %}
+    dest: "/home/{{service_name}}/env"
+
+- name: "create env shell file"
+  ansible.builtin.copy:
+    content: |
+          {% for item in env_vars -%}                                               
+          export {{ item }}                                                            
+          {% endfor %}
+    dest: "/home/{{service_name}}/env.sh"
+
 - ansible.builtin.copy:
     dest: "/etc/systemd/system/{{service_name}}.service"
     content: |
@@ -10,10 +28,12 @@
              User={{service_name}}
              Group={{service_name}}
              WorkingDirectory=/home/{{service_name}}
-             Environment="{{ env_vars | join(' ') }}"
+             EnvironmentFile=/home/{{service_name}}/env
              
              ExecStart={{service_exec_cmd}}
-             
+             StandardOutput=file:{{log_dir}}/out.log
+             StandardError=file:{{log_dir}}/err.log
+      
              [Install]
              WantedBy=multi-user.target
   notify: "restart {{service_name}}"
@@ -84,11 +104,4 @@
   ansible.builtin.pip:
     requirements: "{{reqs}}"
     virtualenv: "/{{service_name}}_venv"
-
-#- name: "resolve /etc/systemd/system/{{service_name}}.service"
-#  template:
-#    src: unit-file.service
-#    dest: "/etc/systemd/system/{{service_name}}.service"
-#    backup: on
-#  notify: "restart {{service_name}}"
 
