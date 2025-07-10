@@ -139,7 +139,7 @@ def start_pipeline_runner():
         common_schemas = {
             "schema": {
                 "cc_cluster": ['enum', 'narval'],
-                "cc_group": "string",
+                "cc_project": "string",
                 "cc_allocation": "string"
             }
         }
@@ -165,7 +165,7 @@ def start_pipeline_runner():
                     common_schemas,
                     {
                         "cc_allocation": None,
-                        "cc_group": None,
+                        "cc_project": None,
                         "cc_cluster": None
                     },
                     dpfold_completion_func

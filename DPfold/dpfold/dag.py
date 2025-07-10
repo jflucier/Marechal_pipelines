@@ -33,7 +33,7 @@ def parse_and_validate_input_files(pipeline_instance_dir):
         if pipeline_instance_args is None:
             yield "MISSING_ARG_FILE", f"could not find pipeline_instance_args_file {pipeline_instance_args_file}"
 
-        if "cc_group" not in pipeline_instance_args:
+        if "cc_project" not in pipeline_instance_args:
             yield "MISSING_ARG", "'cc_group' must be specified in Pipeline Args"
 
         if samplesheet_parse_exception is not None:

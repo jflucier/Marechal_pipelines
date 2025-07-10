@@ -9,26 +9,26 @@ this_python_root = Path(__file__).parent.parent
 
 def cc_remote_task_conf_func_func(pipeline_instance_args):
 
-    cc_username = os.environ["CC_USERNAME"]
+    #cc_username = os.environ["cc_username"]
+    cc_username = "maxl"
     use_cc_robot = os.environ.get("USE_CC_ROBOT") == "True"
 
-    cc_cluster = pipeline_instance_args["CC_CLUSTER"]
+    cc_cluster = pipeline_instance_args["cc_cluster"]
 
     if use_cc_robot:
         cc_host = f"robot.{cc_cluster}.computecanada.ca"
     else:
         cc_host = f"{cc_cluster}.computecanada.ca"
 
-    cc_group = pipeline_instance_args["CC_GROUP"]
-    slurm_account = pipeline_instance_args["SLURM_ACCOUNT"]
+    cc_project = pipeline_instance_args["cc_project"]
 
-    remote_base_dir = f"/home/{cc_username}/projects/{cc_group}"
+    remote_base_dir = f"/home/{cc_username}/projects/{cc_project}"
 
     remote_pipeline_base_dir = f"{remote_base_dir}/pipelines-work-dir"
 
     return lambda sbatch_options: TaskConf(
         executer_type="slurm",
-        slurm_account=slurm_account,
+        slurm_account=cc_username,
         sbatch_options=sbatch_options,
         extra_env={
             "MUGQIC_INSTALL_HOME": "/cvmfs/soft.mugqic/CentOS6",
