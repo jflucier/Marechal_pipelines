@@ -7,7 +7,7 @@ from threading import Thread
 
 import uvicorn
 from fastapi import FastAPI
-from starlette.middleware.cors import CORSMiddleware
+from fastapi.middleware.cors import CORSMiddleware
 
 from dpfold.dag import colabfold_pipeline, parse_and_validate_input_files
 from dpfold.multimer import parse_multimer_list_from_samplesheet
@@ -200,6 +200,16 @@ def init_app():
         allow_origins=['*'],
         allow_methods=["*"],
         allow_headers=["*"],
+        expose_headers=[
+            "Location",
+            "Upload-Offset",
+            "Tus-Resumable",
+            "Tus-Version",
+            "Tus-Extension",
+            "Tus-Max-Size",
+            "Upload-Expires",
+            "Upload-Length",
+        ]
     )
 
     pipeline_runner = start_pipeline_runner()
