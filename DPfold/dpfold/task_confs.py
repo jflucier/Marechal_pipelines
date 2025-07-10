@@ -8,7 +8,7 @@ this_python_root = Path(__file__).parent.parent
 
 
 def cc_remote_task_conf_func_func(pipeline_instance_args):
-
+    slurm_allocation = os.environ["slurm_allocation"]
     cc_username = os.environ["cc_username"]
     use_cc_robot = os.environ.get("USE_CC_ROBOT") == "True"
 
@@ -27,7 +27,7 @@ def cc_remote_task_conf_func_func(pipeline_instance_args):
 
     return lambda sbatch_options: TaskConf(
         executer_type="slurm",
-        slurm_account=cc_username,
+        slurm_account=slurm_allocation,
         sbatch_options=sbatch_options,
         extra_env={
             "MUGQIC_INSTALL_HOME": "/cvmfs/soft.mugqic/CentOS6",
