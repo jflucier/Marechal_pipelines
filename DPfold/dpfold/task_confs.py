@@ -8,7 +8,7 @@ this_python_root = Path(__file__).parent.parent
 
 
 def cc_remote_task_conf_func_func(pipeline_instance_args):
-    slurm_allocation = os.environ["slurm_allocation"]
+    slurm_allocation = pipeline_instance_args["cc_allocation"]
     cc_username = os.environ["cc_username"]
     use_cc_robot = os.environ.get("USE_CC_ROBOT") == "True"
 
