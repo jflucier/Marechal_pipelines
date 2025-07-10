@@ -9,8 +9,7 @@ this_python_root = Path(__file__).parent.parent
 
 def cc_remote_task_conf_func_func(pipeline_instance_args):
 
-    #cc_username = os.environ["cc_username"]
-    cc_username = "maxl"
+    cc_username = os.environ["cc_username"]
     use_cc_robot = os.environ.get("USE_CC_ROBOT") == "True"
 
     cc_cluster = pipeline_instance_args["cc_cluster"]
