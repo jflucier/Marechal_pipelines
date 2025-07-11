@@ -522,7 +522,7 @@ def colabfold_pipeline():
 
         yield from collabfold_dag(dsl, multimers, samplesheet, tc)
 
-        for _ in dsl.query_all_or_nothing("colabfold_batch.*"):
+        for _ in dsl.query_all_or_nothing("cf-fold.*"):
             yield from aggregate_report_task(dsl)
 
     return DryPipe.create_pipeline(p)
