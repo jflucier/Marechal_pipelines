@@ -3,9 +3,9 @@ import React, {useReducer, useEffect} from 'react'
 import {useApi} from "@web-gasket/ApiSession.jsx";
 import {DefaultButton} from "@web-gasket/widgets/Buttons.jsx"
 
-const canSaveFunc = state => {
+const canSaveFunc = args => {
 
-    return state.cc_cluster && state.cc_allocation && state.cc_project
+    return args.cc_cluster && args.cc_allocation && args.cc_project
 }
 
 const dpFoldArgsReducer = (state, action) => {
@@ -32,7 +32,7 @@ const dpFoldArgsReducer = (state, action) => {
                     //exists
                     //isValid
                     ...action.status
-                },
+                }
             }
         }
         case "update": {
@@ -59,6 +59,8 @@ const dpFoldArgsReducer = (state, action) => {
                 isDirty: false
             }
         }
+        default:
+            throw Error(`unknown action ${action.name}`)
     }
 }
 
@@ -73,6 +75,7 @@ const ClusterSelect = ({value, onSelect}) => {
         <select
             className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
             onChange={e => onSelect(e.target.value)}
+            value={value}
         >
             <option value={""}>Choose a cluster</option>
             <option value="narval">Narval</option>
@@ -112,12 +115,10 @@ const DPFoldArgsEditor = ({pipelineInstance, pipelineArgsDispatcher}) => {
     }, [])
 
 
-    const saveArgs = () => {
-        debugger
-        api.savePipelineInstanceArgs(pipelineInstance.pid, dpFoldArgsView.args).then(() =>
-            pipelineArgsDispatcher({name: "saved"})
+    const saveArgs = () =>
+        api.savePipelineInstanceArgs(pipelineInstance.pid, dpFoldArgsView.args).then(
+            () => dpFoldArgsDispatcher({name: "saved"})
         )
-    }
 
     const errorPanel = () => {
 
@@ -167,10 +168,12 @@ const DPFoldArgsEditor = ({pipelineInstance, pipelineArgsDispatcher}) => {
 
     }
 
+    const saveDisabled = (!dpFoldArgsView.canSave) || (!dpFoldArgsView.isDirty)
+
     return <div className="grid gap-6 mb-6 md:grid-cols-1">
             <div>
                 <ClusterSelect
-                    value={dpFoldArgsView.args.cluster}
+                    value={dpFoldArgsView.args.cc_cluster}
                     onSelect={cluster => dpFoldArgsDispatcher({
                         name: "update",
                         fieldName: "cc_cluster",
@@ -228,7 +231,7 @@ const DPFoldArgsEditor = ({pipelineInstance, pipelineArgsDispatcher}) => {
             <div>
                 <DefaultButton
                     caption={"Save"}
-                    isDisabled={! dpFoldArgsView.canSave}
+                    isDisabled={saveDisabled}
                     onClick={saveArgs}
                 />
             </div>

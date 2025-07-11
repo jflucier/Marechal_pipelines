@@ -27,6 +27,8 @@
           - "USER_AUTH_DB={{wg_auth_db}}"
           - "WEB_GASKET_LOG_FILE={{log_dir}}/app.log"
           - "WEB_APP_PORT=8000"
+          - "USE_CC_ROBOT={{USE_CC_ROBOT}}"
+          - "cc_username={{cc_username}}"
 
     - role: web_gasket
       when: True
