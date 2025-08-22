@@ -124,7 +124,7 @@ def parse_multimer_list_from_samplesheet(samplesheet, single_multimer_name=None,
                 elif line.startswith("#"):
                     pass
                 else:
-                    yield c, line.split("\t")
+                    yield c, [field.strip('"') for field in line.split("\t")]
 
                 c +=1
 
