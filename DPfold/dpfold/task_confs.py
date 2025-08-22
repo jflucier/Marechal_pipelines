@@ -27,6 +27,8 @@ def cc_remote_task_conf_func_func(pipeline_instance_args):
 
     collabfold_base = f"/home/{cc_username}/projects/def-marechal"
 
+    task_venv = f"{collabfold_base}/programs/colabfold_af2.3.2_env"
+
     return lambda sbatch_options: TaskConf(
         executer_type="slurm",
         slurm_account=slurm_allocation,
@@ -35,13 +37,13 @@ def cc_remote_task_conf_func_func(pipeline_instance_args):
             "MUGQIC_INSTALL_HOME": "/cvmfs/soft.mugqic/CentOS6",
             "DRYPIPE_TASK_DEBUG": "True",
             "PYTHONPATH": f"$__pipeline_instance_dir/external-file-deps{this_python_root}",
-            "TASK_VENV": f"{collabfold_base}/programs/colabfold_af2.3.2_env",
+            "TASK_VENV": task_venv,
             "remote_base_dir": remote_base_dir,
             "collabfold_db": f"{collabfold_base}/programs/colabfold_db",
             "HOME": "$__task_output_dir/fake_home"
         },
         ssh_remote_dest=f"{cc_username}@{cc_host}:{remote_pipeline_base_dir}",
-        python_bin=f"{remote_base_dir}/programs/colabfold_af2.3.2_env/bin/python3",
+        python_bin=f"{task_venv}/bin/python3",
         #TODO: make this work:
         #run_as_group=slurm_account
         run_as_group=None
