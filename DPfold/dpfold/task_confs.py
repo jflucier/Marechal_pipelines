@@ -29,6 +29,8 @@ def cc_remote_task_conf_func_func(pipeline_instance_args):
 
     task_venv = f"{collabfold_base}/programs/colabfold_af2.3.2_env"
 
+    # /home/maxl/projects/def-marechal/programs/colabfold_af2.3.2_env
+
     return lambda sbatch_options: TaskConf(
         executer_type="slurm",
         slurm_account=slurm_allocation,
