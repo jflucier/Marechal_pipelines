@@ -196,6 +196,8 @@ def collabfold_dag(dsl, list_of_multimers, samplesheet, collabfold_task_conf_fun
                 export XLA_PYTHON_CLIENT_ALLOCATOR="platform"
                 export TF_FORCE_GPU_ALLOW_GROWTH="true"                                                    
                 
+                echo "pb1: $python_bin"
+                echo "pb2: $TASK_VENV/bin/python3"
 
                 echo "running colabfold fold"
                 colabfold_batch \\
@@ -212,9 +214,10 @@ def collabfold_dag(dsl, list_of_multimers, samplesheet, collabfold_task_conf_fun
                 echo "running AF2multimer-analysis on $__task_output_dir/predictions/"
                 mkdir -p $__task_output_dir/predictions/unrelaxed                                                                
                 mv $__task_output_dir/*unrelaxed_* $__task_output_dir/predictions/unrelaxed/ || true
-                mv $__task_output_dir/0_predicted_aligned_error_v1.json $__task_output_dir/predictions/unrelaxed/ || true                                
+                mv $__task_output_dir/0_predicted_aligned_error_v1.json $__task_output_dir/predictions/unrelaxed/ || true                                                                
+
                 
-                $python_bin -u $colabfold_analysis_script \\
+                python3 -u $colabfold_analysis_script \\
                     --pred_folder=$__task_output_dir/predictions \\
                     --out_folder=$__task_output_dir \\
                     --multimer_name=$multimer_name \\
