@@ -182,7 +182,7 @@ def collabfold_dag(dsl, list_of_multimers, samplesheet, collabfold_task_conf_fun
             ).calls("""
                 #!/usr/bin/bash
 
-                set -e
+                set -ex
                 
                 mkdir -p $HOME/.licenses/
                 touch $HOME/.licenses/intel                
