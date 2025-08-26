@@ -174,7 +174,8 @@ def collabfold_dag(dsl, list_of_multimers, samplesheet, collabfold_task_conf_fun
                 a3m=search_task.outputs.a3m,
                 colabfold_analysis_script=dsl.file(colabfold_analysis.code_path()),
                 code_dep1=dsl.file(__file__),
-                code_dep2=dsl.file(multimer_code_file())
+                code_dep2=dsl.file(multimer_code_file()),
+                multimer_name=multimer_name
             ).outputs(
                 relaxed_pdb=dsl.file(f'fold.fa'),
                 unrelaxed_pdb=dsl.file(f'0.a3m'),
