@@ -212,10 +212,10 @@ def collabfold_dag(dsl, list_of_multimers, samplesheet, collabfold_task_conf_fun
                 
                 search_task_out=$__pipeline_instance_dir/output/cf-search.${multimer_name}
 
-                echo "running AF2multimer-analysis on $__task_output_dir/predictions/"                                                                
+                echo "running AF2multimer-analysis on $__task_output_dir"                                                                
                 
                 python3 -u $colabfold_analysis_script \\
-                    --pred_folder=$__task_output_dir/predictions \\
+                    --pred_folder=$__task_output_dir \\
                     --out_folder=$__task_output_dir \\
                     --multimer_name=$multimer_name \\
                     --fasta=$search_task_out/fold.fa
