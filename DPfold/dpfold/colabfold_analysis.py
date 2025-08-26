@@ -983,6 +983,9 @@ def file_path(path):
     else:
         raise argparse.ArgumentTypeError(f"path {path} does not exist")
 
+def code_path():
+    return __file__
+
 
 def test():
     run([

@@ -120,7 +120,7 @@ def collabfold_dag(dsl, list_of_multimers, samplesheet, collabfold_task_conf_fun
             multimer_name=multimer_name,
             code_dep1=dsl.file(__file__),
             code_dep2=dsl.file(multimer_code_file()),
-            code_dep3=dsl.file(colabfold_analysis.file_path())
+            code_dep3=dsl.file(colabfold_analysis.code_path())
         ).outputs(
             fa_out=dsl.file(f'fold.fa'),
             a3m=dsl.file(f'0.a3m')
