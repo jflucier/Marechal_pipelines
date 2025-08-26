@@ -212,11 +212,7 @@ def collabfold_dag(dsl, list_of_multimers, samplesheet, collabfold_task_conf_fun
                 
                 search_task_out=$__pipeline_instance_dir/output/cf-search.${multimer_name}
 
-                echo "running AF2multimer-analysis on $__task_output_dir/predictions/"
-                mkdir -p $__task_output_dir/predictions/unrelaxed                                                                
-                mv $__task_output_dir/*unrelaxed_* $__task_output_dir/predictions/unrelaxed/ || true
-                mv $__task_output_dir/0_predicted_aligned_error_v1.json $__task_output_dir/predictions/unrelaxed/ || true                                                                
-
+                echo "running AF2multimer-analysis on $__task_output_dir/predictions/"                                                                
                 
                 python3 -u $colabfold_analysis_script \\
                     --pred_folder=$__task_output_dir/predictions \\
