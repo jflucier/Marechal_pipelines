@@ -25,7 +25,7 @@ def cc_remote_task_conf_func_func(pipeline_instance_args):
 
     remote_base_dir = f"/home/{cc_username}/projects/{cc_project}"
 
-    remote_pipeline_base_dir = f"{remote_base_dir}/pipelines-work-dir"
+    remote_pipeline_base_dir = f"{remote_base_dir}/dpfold-pipelines-work-dir"
 
     collabfold_base = f"/home/{cc_username}/projects/def-marechal"
 
