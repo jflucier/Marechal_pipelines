@@ -145,10 +145,10 @@ def start_pipeline_runner():
         }
 
         def dpfold_completion_func(pipeline_instance_dir):
-            g = Path(pipeline_instance_dir, "output", "of-aggregate-report").glob("*.summary.csv")
-            report = list(g)
-            if len(report) > 0:
-                yield True, [report[0]]
+            zipz = list(Path(pipeline_instance_dir, "output", "of-aggregate-report").glob("*.zip"))
+            if len(zipz) > 0:
+                csvs = Path(pipeline_instance_dir, "output", "of-aggregate-report").glob("*.csv")
+                yield True, list(csvs) + zipz
             else:
                 yield False, []
 
@@ -160,15 +160,11 @@ def start_pipeline_runner():
         yield dp_fold_instances_dir, \
                PipelineType(
                    "DPFold",
-                    colabfold_pipeline(),
-                    validate_dp_fold,
-                    common_schemas,
-                    {
-                        "cc_allocation": None,
-                        "cc_project": None,
-                        "cc_cluster": None
-                    },
-                    dpfold_completion_func
+                    pipeline=colabfold_pipeline(),
+                    validator=validate_dp_fold,
+                    spartan_schema=None,
+                    default_args={},
+                    complete_func=dpfold_completion_func
                )
 
     pipeline_runner = PipelineRunner(

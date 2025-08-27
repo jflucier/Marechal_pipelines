@@ -2,6 +2,10 @@
 import React, {useReducer, useEffect} from 'react'
 import {useApi} from "@web-gasket/ApiSession.jsx";
 import {DefaultButton} from "@web-gasket/widgets/Buttons.jsx"
+import FileManager from "@web-gasket/components/FileManager.jsx";
+import ModalWindow from "@web-gasket/widgets/ModalWindow.jsx";
+import PipelineInstanceStartButton from "@web-gasket/components/PipelineInstanceStartButton.jsx";
+
 
 const canSaveFunc = args => {
 
@@ -20,7 +24,8 @@ const dpFoldArgsReducer = (state, action) => {
                 },
                 customFilesStatus: null,
                 isDirty: false,
-                canSave: false
+                canSave: false,
+                fileManagerVisible: false
             }
         }
         case "updateCustomFileStatus": {
@@ -59,6 +64,18 @@ const dpFoldArgsReducer = (state, action) => {
                 isDirty: false
             }
         }
+        case "popFileManager": {
+            return {
+                ...state,
+                fileManagerVisible: true
+            }
+        }
+        case "closeFileManager": {
+            return {
+                ...state,
+                fileManagerVisible: false
+            }
+        }
         default:
             throw Error(`unknown action ${action.name}`)
     }
@@ -79,12 +96,15 @@ const ClusterSelect = ({value, onSelect}) => {
         >
             <option value={""}>Choose a cluster</option>
             <option value="narval">Narval</option>
-            <option value="beluga">Beluga</option>
-            <option value="cedar">Cedar</option>
-            <option value="graham">Graham</option>
         </select>
         </>
 }
+
+/*
+    <option value="beluga">Beluga</option>
+    <option value="cedar">Cedar</option>
+    <option value="graham">Graham</option>
+*/
 
 
 const DPFoldArgsEditor = ({pipelineInstance, pipelineArgsDispatcher}) => {
@@ -103,15 +123,12 @@ const DPFoldArgsEditor = ({pipelineInstance, pipelineArgsDispatcher}) => {
 
     useEffect(() => {
 
-        //if(dpFoldArgsView.customFilesStatus === null) {return}
-
         api.getDPFoldCustomFilesStatus(pipelineInstance.pid).then(s => {
             dpFoldArgsDispatcher({
                 name: "updateCustomFileStatus",
                 status: s
             })
         })
-
     }, [])
 
 
@@ -170,7 +187,28 @@ const DPFoldArgsEditor = ({pipelineInstance, pipelineArgsDispatcher}) => {
 
     const saveDisabled = (!dpFoldArgsView.canSave) || (!dpFoldArgsView.isDirty)
 
+    const fileManagerModal = () => {
+        if(! dpFoldArgsView.fileManagerVisible) {
+            return
+        }
+        const closeFileManager = () => dpFoldArgsDispatcher({name: "closeFileManager"})
+
+        return <ModalWindow
+            title={"Manage Pipeline Files"}
+            largeGrid={true}
+            onClose={closeFileManager}
+            footer={<>
+                <DefaultButton caption={"Close"} onClick={closeFileManager}/>
+            </>}
+        >
+            <FileManager pipelineInstanceDir={pipelineInstance.pid}/>
+        </ModalWindow>
+    }
+
+    const popFileManager = () => dpFoldArgsDispatcher({name: "popFileManager"})
+
     return <div className="grid gap-6 mb-6 md:grid-cols-1">
+        {fileManagerModal()}
             <div>
                 <ClusterSelect
                     value={dpFoldArgsView.args.cc_cluster}
@@ -197,43 +235,59 @@ const DPFoldArgsEditor = ({pipelineInstance, pipelineArgsDispatcher}) => {
                     })}
                 />
             </div>
-            <div>
-                <label className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
-                    compute canada project
-                </label>
-                <input
-                    type="text"
-                    className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
-                    placeholder="def-my-project"
-                    value={dpFoldArgsView.args.cc_project || ""}
-                    onChange={e => dpFoldArgsDispatcher({
-                        name: "update",
-                        fieldName: "cc_project",
-                        value: e.target.value
-                    })}
-                />
-            </div>
+            {
+                false && <div>
+                    <label className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
+                        compute canada project
+                    </label>
+                    <input
+                        type="text"
+                        className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                        placeholder="def-my-project"
+                        value={dpFoldArgsView.args.cc_project || ""}
+                        onChange={e => dpFoldArgsDispatcher({
+                            name: "update",
+                            fieldName: "cc_project",
+                            value: e.target.value
+                        })}
+                    />
+                </div>
+            }
 
-            <div>
-                <label className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
+            <div className={"flex flex-row"}>
+
+                <div className={"basis-1/3"}>
+                    <label className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
                     sample sheet { sampleSheetStatusDisplay() }
-                </label>
-                <input
-                    type="text"
-                    className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
-                    placeholder="samplesheet.tsv"
-                    value={sampleSheetField()}
-                    disabled={true}
-                />
-                {errorPanel()}
+                    </label>
+                    <input
+                        type="text"
+                        className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                        placeholder="samplesheet.tsv"
+                        value={sampleSheetField()}
+                        disabled={true}
+                    />
+                    {errorPanel()}
+                </div>
+                <div className={"basis-2/3 pt-7 ml-6"}>
+                    <DefaultButton onClick={popFileManager} caption={"Manage pipeline Files"}/>
+                </div>
             </div>
 
-            <div>
-                <DefaultButton
+            <div className={"flex flex-row"}>
+                <div>
+                    <DefaultButton
                     caption={"Save"}
                     isDisabled={saveDisabled}
                     onClick={saveArgs}
                 />
+                </div>
+                <div className={"ml-4"}>
+                    <PipelineInstanceStartButton
+                    pipelineInstance={pipelineInstance}
+                    isReady={true}
+                    />
+                </div>
             </div>
         </div>
 }
