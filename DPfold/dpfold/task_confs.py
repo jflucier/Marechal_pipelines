@@ -19,7 +19,9 @@ def cc_remote_task_conf_func_func(pipeline_instance_args):
     else:
         cc_host = f"{cc_cluster}.computecanada.ca"
 
-    cc_project = pipeline_instance_args["cc_project"]
+    #cc_project = pipeline_instance_args["cc_project"]
+
+    cc_project = slurm_allocation
 
     remote_base_dir = f"/home/{cc_username}/projects/{cc_project}"
 
