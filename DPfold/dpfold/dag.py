@@ -1,5 +1,6 @@
 import glob
 import os.path
+import zipfile
 from pathlib import Path
 import json
 
@@ -59,7 +60,7 @@ def generate_fasta_colabfold(samplesheet, multimer_name, fa_out):
 
 
 @DryPipe.python_call()
-def generate_aggregate_report(__pipeline_instance_dir, interfaces_csv, summary_csv, contacts_csv):
+def generate_aggregate_report(__pipeline_instance_dir, interfaces_csv, summary_csv, contacts_csv, all_zip, __task_output_dir):
 
     def gen_interfaces_lines():
 
@@ -98,6 +99,19 @@ def generate_aggregate_report(__pipeline_instance_dir, interfaces_csv, summary_c
     flush_lines_into(gen_summary_lines(), summary_csv)
 
     flush_lines_into(gen_contact_lines(), contacts_csv)
+
+    pdbs = Path(__pipeline_instance_dir, "output").glob("*/*.pdb")
+
+    zip_root = Path(__pipeline_instance_dir, "output")
+
+    with zipfile.ZipFile(all_zip, "w", zipfile.ZIP_DEFLATED) as zipf:
+        for pdb in pdbs:
+            #if "unrelaxed" not in pdb.name:
+            zipf.write(pdb, arcname=pdb.relative_to(zip_root))
+
+        zipf.write(interfaces_csv, arcname="interfaces.csv")
+        zipf.write(summary_csv, arcname="summary.csv")
+        zipf.write(contacts_csv, arcname="contacts.csv")
 
 
 
@@ -243,7 +257,8 @@ def aggregate_report_task(dsl):
     ).outputs(
         interfaces_csv=dsl.file(f"{pipeline_instance_dir_basename}.interfaces.csv"),
         summary_csv=dsl.file(f"{pipeline_instance_dir_basename}.summary.csv"),
-        contacts_csv=dsl.file(f"{pipeline_instance_dir_basename}.contacts.csv")
+        contacts_csv=dsl.file(f"{pipeline_instance_dir_basename}.contacts.csv"),
+        all_zip=dsl.file(f"{pipeline_instance_dir_basename}.all.zip"),
     ).calls(
         generate_aggregate_report
     )()
