@@ -1,4 +1,14 @@
 
+- name: cleanup previous build
+  become: no
+  ansible.builtin.shell:
+    cmd: "{{item}}"
+    chdir: "{{src}}"
+  register: script_output
+  with_items:
+    - "rm -f *"
+  delegate_to: localhost
+
 - name: npm run build
   become: no
   ansible.builtin.command:
@@ -19,6 +29,18 @@
     owner: "{{service_user}}"
     group: "{{service_user}}"
 
+
+- name: cleanup previous build
+  become: yes
+  become_user: "{{service_user}}"
+  ansible.builtin.shell:
+    cmd: "{{item}}"
+    chdir: "{{dst}}"
+  register: script_output
+  with_items:
+    - "rm -f *"
+
+
 - name: copy bundles
   ansible.builtin.copy:
     src: "{{item}}"
@@ -26,4 +48,6 @@
     owner: "{{service_user}}"
     group: "{{service_user}}"
   with_fileglob:
-    - "{{src}}"
+    - "{{src}}/*.js"
+    - "{{src}}/*.css"
+    - "{{src}}/*.js.map"
