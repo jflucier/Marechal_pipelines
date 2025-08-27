@@ -695,7 +695,9 @@ def analyze_multimer(
         if not exclude(f)
     ]
 
-    print(f"pdbs: \n{'\n'.join(paes_and_pdbs)}")
+    print("pdbs:")
+    print('\n'.join(paes_and_pdbs))
+    print("\n")
 
     def combine_pdbs_and_paes_into_2_tuples():
         def k(path):
@@ -727,11 +729,15 @@ def analyze_multimer(
 
     for pdb_filename, pae_filename in combine_pdbs_and_paes_into_2_tuples():
 
+
+        print(f"\n{os.path.basename(pdb_filename)}, {os.path.basename(pae_filename)}")
+
         model_num = get_af_model_num(pdb_filename)
         print(f"-> map chain labels found in pdb to protein names for model {model_num}")
         chain_list = get_chain_list_names(pdb_filename)
 
-        chain_list_lbl = list(lbls_from_fasta())
+        #chain_list_lbl = list(lbls_from_fasta())
+        chain_list_lbl = multimer_name.split("-")
 
         print(f"chain list: {chain_list}")
         print(f"chain list lbl: {chain_list_lbl}")
