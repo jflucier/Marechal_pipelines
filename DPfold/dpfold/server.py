@@ -245,7 +245,18 @@ def init_app():
     if user_auth_db is None:
         raise Exception(f"missing env var USER_AUTH_DB")
 
+    web_artifacts_dir = Path(Path(__file__).parent.parent.parent, "web-ui", "build")
+
+    bundle_js = list(Path(web_artifacts_dir).glob("bundle*.js"))
+    if len(bundle_js) == 0:
+        raise Exception(f"no bundle found in {web_artifacts_dir}")
+    elif len(bundle_js) > 1:
+        raise Exception(f"multiple bundle found in {web_artifacts_dir}")
+
+    bundle_js = bundle_js[0].name
+
     def page_func(head=""):
+
         return f"""
         <!doctype html>
         <html>
@@ -259,7 +270,7 @@ def init_app():
             </head>
             <body>
                 <div id="app"/>                
-                <script type="module" src="/bundle.js" bundle></script>
+                <script type="module" src="/{bundle_js}" bundle></script>
             </body>
         </html>
         """
@@ -278,9 +289,7 @@ def init_app():
 
     authenticator.init_routes(api, app, page_func)
 
-    web_artifacts_dir = Path(Path(__file__).parent.parent.parent, "web-ui", "build")
-
-    init_page_and_upload_routes(app, authenticator, page_func, web_artifacts_dir)
+    init_page_and_upload_routes(app, authenticator, page_func, web_artifacts_dir, bundle_js)
 
     app.mount("/api", api)
 
