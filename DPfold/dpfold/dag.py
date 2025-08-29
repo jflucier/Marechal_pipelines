@@ -100,7 +100,7 @@ def generate_aggregate_report(__pipeline_instance_dir, interfaces_csv, summary_c
 
     flush_lines_into(gen_contact_lines(), contacts_csv)
 
-    fold_outfile = Path(__pipeline_instance_dir, "output").glob("*/*")
+    fold_outfile = Path(__pipeline_instance_dir, "output").glob("cf-fold.*/*")
 
     zip_root = Path(__pipeline_instance_dir, "output")
 
