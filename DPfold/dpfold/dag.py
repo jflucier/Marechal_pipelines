@@ -100,14 +100,21 @@ def generate_aggregate_report(__pipeline_instance_dir, interfaces_csv, summary_c
 
     flush_lines_into(gen_contact_lines(), contacts_csv)
 
-    pdbs = Path(__pipeline_instance_dir, "output").glob("*/*.pdb")
+    fold_outfile = Path(__pipeline_instance_dir, "output").glob("*/*")
 
     zip_root = Path(__pipeline_instance_dir, "output")
 
+    excluded_files = [
+        "0_predicted_aligned_error_v1.json",
+        "fake_home"
+    ]
+
     with zipfile.ZipFile(all_zip, "w", zipfile.ZIP_DEFLATED) as zipf:
-        for pdb in pdbs:
-            #if "unrelaxed" not in pdb.name:
-            zipf.write(pdb, arcname=pdb.relative_to(zip_root))
+        for fof in fold_outfile:
+            if fof.name.endswith(".done.txt") or fof.name in excluded_files:
+                continue
+            zipf.write(fof, arcname=fof.relative_to(zip_root))
+
 
         zipf.write(interfaces_csv, arcname="interfaces.csv")
         zipf.write(summary_csv, arcname="summary.csv")
