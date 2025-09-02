@@ -8,6 +8,7 @@ from threading import Thread
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.requests import Request
 
 from dpfold.dag import colabfold_pipeline, parse_and_validate_input_files
 from dpfold.multimer import parse_multimer_list_from_samplesheet
@@ -214,6 +215,27 @@ def init_app():
 
     api = create_sub_api(pipeline_runner)
 
+
+    @api.get("/cc_allocations")
+    async def cc_allocations(request: Request):
+
+        sess = request.state.session
+
+        user_email = sess.get("user_email")
+
+        af = os.environ.get("CC_ALLOCATIONS_FILE")
+        if af is None:
+            raise Exception(f"missing env var CC_ALLOCATIONS_FILE")
+
+        if not Path(af).exists():
+            raise Exception(f"CC_ALLOCATIONS_FILE does not exist")
+
+        with open(af, "r") as f:
+            cc_allocs = json.load(f)
+
+        return cc_allocs.get(user_email)
+
+
     @api.get("/dpFoldFilesStatus/{pid:path}")
     async def dp_files_status(pid: str):
 
@@ -247,15 +269,7 @@ def init_app():
 
     web_artifacts_dir = Path(Path(__file__).parent.parent.parent, "web-ui", "build")
 
-    bundle_js = list(Path(web_artifacts_dir).glob("bundle*.js"))
-    if len(bundle_js) == 0:
-        raise Exception(f"no bundle found in {web_artifacts_dir}")
-    elif len(bundle_js) > 1:
-        raise Exception(f"multiple bundle found in {web_artifacts_dir}")
-
-    bundle_js = bundle_js[0].name
-
-    def page_func(head=""):
+    def page_func(head="", bundle_js=None):
 
         return f"""
         <!doctype html>
@@ -289,7 +303,7 @@ def init_app():
 
     authenticator.init_routes(api, app, page_func)
 
-    init_page_and_upload_routes(app, authenticator, page_func, web_artifacts_dir, bundle_js)
+    init_page_and_upload_routes(app, authenticator, page_func, web_artifacts_dir)
 
     app.mount("/api", api)
 

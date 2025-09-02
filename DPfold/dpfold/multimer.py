@@ -22,8 +22,15 @@ class Multimer:
         return len(self.proteins)
 
     def multimer_name(self):
+        def s(protein):
+            pdb_name = self.pdb_names()
+            if pdb_name == "":
+                return f"{protein.name}_{protein.n_occurences}"
+            else:
+                return f"{protein.name}_{protein.n_occurences}_{pdb_name}"
+
         return "-".join([
-            f"{protein.name}_{protein.n_occurences}"
+            s(protein)
             for protein in self.proteins
         ])
 
@@ -76,6 +83,16 @@ class Multimer:
             f.write("\n".join(
                 [f">{h}\n{s}" for h, s in zip(fa_header, fa_seq)]
             ))
+
+
+    def pdb_names(self):
+        def g():
+            for p in self.proteins:
+                if p.pdb is not None and p.pdb != "":
+                    for pdb in p.pdb.split(","):
+                        yield pdb
+
+        return "_".join(g())
 
 
     def generate_pdb(self, output_dir):
@@ -192,3 +209,9 @@ def file_path():
     return __file__
 
 
+if __name__ == '__main__':
+
+    multimers = parse_multimer_list_from_samplesheet("/home/maxl/dev/Marechal_pipelines/example/test-case-1/samplesheet.tsv")
+
+    for m in multimers:
+        print(m.multimer_name())

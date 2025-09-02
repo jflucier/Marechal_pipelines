@@ -29,6 +29,7 @@
           - "WEB_APP_PORT=8000"
           - "USE_CC_ROBOT={{USE_CC_ROBOT}}"
           - "cc_username={{cc_username}}"
+          - "CC_ALLOCATIONS_FILE=/home/web-gasket/cc_allocs.json"
 
     - role: web_gasket
       when: True
@@ -43,7 +44,12 @@
       when: True
       vars:
         service_user: web-gasket
-        src: "../web-ui/build/*"
+        src: "../web-ui/build"
         dst: /web-gasket/web-ui/build
         spa_dir: "../web-ui"
 
+  tasks:
+    - ansible.builtin.copy:
+      dest: "/home/{{os_user}}/add-user.sh"
+      src: "cc_allocs.json"
+      mode: u=rw,g=r,o=r
