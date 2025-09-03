@@ -145,7 +145,7 @@ def collabfold_dag(dsl, multimer_batch, samplesheet, collabfold_task_conf_func):
     ).inputs(
         samplesheet=dsl.file(samplesheet)
     ).outputs(
-        pdbs=dsl.file("pdbs")
+        pdb_folder=dsl.file("pdbs")
     ).calls(download_pdbs)()
 
     yield download_pdbs_task
@@ -163,7 +163,7 @@ def collabfold_dag(dsl, multimer_batch, samplesheet, collabfold_task_conf_func):
             ).inputs(
                 samplesheet=dsl.file(samplesheet),
                 multimer_name=multimer_name,
-                pdbs=download_pdbs_task.outputs.pdbs,
+                pdb_folder=download_pdbs_task.outputs.pdb_folder,
                 fold_name=str(multimer.fold_name()),
                 code_dep1=dsl.file(__file__),
                 code_dep2=dsl.file(multimer_code_file()),
@@ -222,7 +222,7 @@ def collabfold_dag(dsl, multimer_batch, samplesheet, collabfold_task_conf_func):
                     colabfold_analysis_script=dsl.file(colabfold_analysis.code_path()),
                     code_dep1=dsl.file(__file__),
                     code_dep2=dsl.file(multimer_code_file()),
-                    pdbs=download_pdbs_task.outputs.pdbs,
+                    pdb_folder=download_pdbs_task.outputs.pdb_folder,
                     multimer_name=multimer_name,
                     fold_name=search_task.inputs.fold_name,
                     has_pdbs=str("True" if multimer_batch.multimer_by_name(multimer_name).has_pdbs() else "False")
@@ -246,6 +246,9 @@ def collabfold_dag(dsl, multimer_batch, samplesheet, collabfold_task_conf_func):
                     export XLA_PYTHON_CLIENT_MEM_FRACTION="4.0"
                     export XLA_PYTHON_CLIENT_ALLOCATOR="platform"
                     export TF_FORCE_GPU_ALLOW_GROWTH="true"
+                    
+                    echo "pdb_folder: $pdb_folder
+                    echo "check: $__pipeline_instance_dir/pdbs"
                                     
                     if [[ "$has_pdbs" == "True" ]]; then
                        template_args="--templates 1 --custom-template-path $__pipeline_instance_dir/pdbs"
