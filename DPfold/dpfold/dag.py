@@ -150,142 +150,144 @@ def collabfold_dag(dsl, multimer_batch, samplesheet, collabfold_task_conf_func):
 
     yield download_pdbs_task
 
-    for multimer in multimer_batch:
+    for match in dsl.query_all_or_nothing("cf-download-pdbs", state="completed"):
 
-        multimer_name = multimer.multimer_name()
+        for multimer in multimer_batch:
 
-        colabfold_search_task = dsl.task(
-            key=f"cf-search.{multimer_name}",
-            is_slurm_array_child=True,
-            task_conf=collabfold_task_conf_func(colabfold_search_slurm_options)
-        ).inputs(
-            samplesheet=dsl.file(samplesheet),
-            multimer_name=multimer_name,
-            pdbs=download_pdbs_task.outputs.pdbs,
-            fold_name=str(multimer.fold_name()),
-            code_dep1=dsl.file(__file__),
-            code_dep2=dsl.file(multimer_code_file()),
-            code_dep3=dsl.file(colabfold_analysis.code_path())
-        ).outputs(
-            fa_out=dsl.file(f'fold.fa'),
-            a3m=dsl.file(f'0.a3m')
-        ).calls(
-            generate_fasta_colabfold
-        ).calls("""
-            #!/usr/bin/bash
+            multimer_name = multimer.multimer_name()
 
-            set -ex
-            
-            mkdir -p $HOME/.licenses/
-            touch $HOME/.licenses/intel
-
-            module load StdEnv/2020 gcc/9.3.0 cuda/11.4 openmpi/4.0.3 openmm/8.0.0 hh-suite/3.3.0 hmmer/3.2.1 mmseqs2/14-7e284
-
-            TE=$TASK_VENV/bin/activate                      
-            echo "will activate env: $TE"
-            source $TE
-
-            echo "running colabfold search"
-            colabfold_search \\
-              --threads 8 --use-env 1 --db-load-mode 0 \\
-              --mmseqs mmseqs \\
-              --db1 $collabfold_db/uniref30_2302_db \\
-              --db2 $collabfold_db/pdb100_230517 \\
-              --db3 $collabfold_db/colabfold_envdb_202108_db \\
-              $fa_out $collabfold_db $__task_output_dir
-
-            echo "done"
-
-        """)()
-        yield colabfold_search_task
-
-    for match in dsl.query_all_or_nothing("cf-search.*", state="ready"):
-        yield dsl.task(
-            key=f"cf-search-array",
-            task_conf=collabfold_task_conf_func(colabfold_search_slurm_options)
-        ).slurm_array_parent(
-            children_tasks=match.tasks
-        )()
-
-    for match in dsl.query_all_or_nothing("cf-search.*", state="completed"):
-        for search_task in match.tasks:
-            multimer_name = str(search_task.inputs.multimer_name)
-
-            colabfold_batch_task = dsl.task(
-                key=f"cf-fold.{multimer_name}",
+            colabfold_search_task = dsl.task(
+                key=f"cf-search.{multimer_name}",
                 is_slurm_array_child=True,
-                task_conf=collabfold_task_conf_func(colabfold_fold_slurm_options)
+                task_conf=collabfold_task_conf_func(colabfold_search_slurm_options)
             ).inputs(
-                a3m=search_task.outputs.a3m,
-                colabfold_analysis_script=dsl.file(colabfold_analysis.code_path()),
+                samplesheet=dsl.file(samplesheet),
+                multimer_name=multimer_name,
+                pdbs=download_pdbs_task.outputs.pdbs,
+                fold_name=str(multimer.fold_name()),
                 code_dep1=dsl.file(__file__),
                 code_dep2=dsl.file(multimer_code_file()),
-                pdbs=download_pdbs_task.outputs.pdbs,
-                multimer_name=multimer_name,
-                fold_name=search_task.inputs.fold_name,
-                has_pdbs=str("True" if multimer_batch.multimer_by_name(multimer_name).has_pdbs() else "False")
+                code_dep3=dsl.file(colabfold_analysis.code_path())
             ).outputs(
-                relaxed_pdb=dsl.file(f'fold.fa'),
-                unrelaxed_pdb=dsl.file(f'0.a3m'),
-                all_results=dsl.file_set("**/*", exclude_pattern="*.pkl|*.pickle"),
+                fa_out=dsl.file(f'fold.fa'),
+                a3m=dsl.file(f'0.a3m')
+            ).calls(
+                generate_fasta_colabfold
             ).calls("""
                 #!/usr/bin/bash
-
+    
                 set -ex
                 
                 mkdir -p $HOME/.licenses/
-                touch $HOME/.licenses/intel                
-                
+                touch $HOME/.licenses/intel
+    
                 module load StdEnv/2020 gcc/9.3.0 cuda/11.4 openmpi/4.0.3 openmm/8.0.0 hh-suite/3.3.0 hmmer/3.2.1 mmseqs2/14-7e284
-
-                source $TASK_VENV/bin/activate
-
-                export TF_FORCE_UNIFIED_MEMORY="1"
-                export XLA_PYTHON_CLIENT_MEM_FRACTION="4.0"
-                export XLA_PYTHON_CLIENT_ALLOCATOR="platform"
-                export TF_FORCE_GPU_ALLOW_GROWTH="true"
-                                
-                if [[ "$has_pdbs" == "True" ]]; then
-                   template_args="--templates 1 --custom-template-path $__pipeline_instance_dir/pdbs"
-                else
-                   template_args=""
-                fi
-                
-                echo "pb1: $python_bin"
-                echo "pb2: $TASK_VENV/bin/python3"
-
-                echo "running colabfold fold"
-                colabfold_batch $template_args \\
-                  --use-gpu-relax --amber --num-relax 3 \\
-                  --num-models 3 \\
-                  --num-recycle 30 --recycle-early-stop-tolerance 0.5 \\
-                  --model-type auto \\                                    
-                  --data $collabfold_db \\
-                  $a3m \\
-                  $__task_output_dir
-                
-                search_task_out=$__pipeline_instance_dir/output/cf-search.${multimer_name}
-
-                echo "running AF2multimer-analysis on $__task_output_dir"                                                                
-                
-                python3 -u $colabfold_analysis_script \\
-                    --pred_folder=$__task_output_dir \\
-                    --out_folder=$__task_output_dir \\
-                    --multimer_name=$multimer_name \\
-                    --fasta=$search_task_out/fold.fa
-
+    
+                TE=$TASK_VENV/bin/activate                      
+                echo "will activate env: $TE"
+                source $TE
+    
+                echo "running colabfold search"
+                colabfold_search \\
+                  --threads 8 --use-env 1 --db-load-mode 0 \\
+                  --mmseqs mmseqs \\
+                  --db1 $collabfold_db/uniref30_2302_db \\
+                  --db2 $collabfold_db/pdb100_230517 \\
+                  --db3 $collabfold_db/colabfold_envdb_202108_db \\
+                  $fa_out $collabfold_db $__task_output_dir
+    
                 echo "done"
-
+    
             """)()
-            yield colabfold_batch_task
+            yield colabfold_search_task
 
-        for match in dsl.query_all_or_nothing("cf-fold.*", state="ready"):
+        for match in dsl.query_all_or_nothing("cf-search.*", state="ready"):
             yield dsl.task(
-                key=f"cf-fold-array",
-                task_conf=collabfold_task_conf_func(colabfold_fold_slurm_options)
+                key=f"cf-search-array",
+                task_conf=collabfold_task_conf_func(colabfold_search_slurm_options)
             ).slurm_array_parent(
                 children_tasks=match.tasks
             )()
+
+        for match in dsl.query_all_or_nothing("cf-search.*", state="completed"):
+            for search_task in match.tasks:
+                multimer_name = str(search_task.inputs.multimer_name)
+
+                colabfold_batch_task = dsl.task(
+                    key=f"cf-fold.{multimer_name}",
+                    is_slurm_array_child=True,
+                    task_conf=collabfold_task_conf_func(colabfold_fold_slurm_options)
+                ).inputs(
+                    a3m=search_task.outputs.a3m,
+                    colabfold_analysis_script=dsl.file(colabfold_analysis.code_path()),
+                    code_dep1=dsl.file(__file__),
+                    code_dep2=dsl.file(multimer_code_file()),
+                    pdbs=download_pdbs_task.outputs.pdbs,
+                    multimer_name=multimer_name,
+                    fold_name=search_task.inputs.fold_name,
+                    has_pdbs=str("True" if multimer_batch.multimer_by_name(multimer_name).has_pdbs() else "False")
+                ).outputs(
+                    relaxed_pdb=dsl.file(f'fold.fa'),
+                    unrelaxed_pdb=dsl.file(f'0.a3m'),
+                    all_results=dsl.file_set("**/*", exclude_pattern="*.pkl|*.pickle"),
+                ).calls("""
+                    #!/usr/bin/bash
+    
+                    set -ex
+                    
+                    mkdir -p $HOME/.licenses/
+                    touch $HOME/.licenses/intel                
+                    
+                    module load StdEnv/2020 gcc/9.3.0 cuda/11.4 openmpi/4.0.3 openmm/8.0.0 hh-suite/3.3.0 hmmer/3.2.1 mmseqs2/14-7e284
+    
+                    source $TASK_VENV/bin/activate
+    
+                    export TF_FORCE_UNIFIED_MEMORY="1"
+                    export XLA_PYTHON_CLIENT_MEM_FRACTION="4.0"
+                    export XLA_PYTHON_CLIENT_ALLOCATOR="platform"
+                    export TF_FORCE_GPU_ALLOW_GROWTH="true"
+                                    
+                    if [[ "$has_pdbs" == "True" ]]; then
+                       template_args="--templates 1 --custom-template-path $__pipeline_instance_dir/pdbs"
+                    else
+                       template_args=""
+                    fi
+                    
+                    echo "pb1: $python_bin"
+                    echo "pb2: $TASK_VENV/bin/python3"
+    
+                    echo "running colabfold fold"
+                    colabfold_batch $template_args \\
+                      --use-gpu-relax --amber --num-relax 3 \\
+                      --num-models 3 \\
+                      --num-recycle 30 --recycle-early-stop-tolerance 0.5 \\
+                      --model-type auto \\                                    
+                      --data $collabfold_db \\
+                      $a3m \\
+                      $__task_output_dir
+                    
+                    search_task_out=$__pipeline_instance_dir/output/cf-search.${multimer_name}
+    
+                    echo "running AF2multimer-analysis on $__task_output_dir"                                                                
+                    
+                    python3 -u $colabfold_analysis_script \\
+                        --pred_folder=$__task_output_dir \\
+                        --out_folder=$__task_output_dir \\
+                        --multimer_name=$multimer_name \\
+                        --fasta=$search_task_out/fold.fa
+    
+                    echo "done"
+    
+                """)()
+                yield colabfold_batch_task
+
+            for match in dsl.query_all_or_nothing("cf-fold.*", state="ready"):
+                yield dsl.task(
+                    key=f"cf-fold-array",
+                    task_conf=collabfold_task_conf_func(colabfold_fold_slurm_options)
+                ).slurm_array_parent(
+                    children_tasks=match.tasks
+                )()
 
 
 def aggregate_report_task(dsl):
