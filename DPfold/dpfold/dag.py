@@ -142,6 +142,8 @@ def collabfold_dag(dsl, multimer_batch, samplesheet, collabfold_task_conf_func):
 
     download_pdbs_task = dsl.task(
         key=f"cf-download-pdbs"
+    ).inputs(
+        samplesheet=dsl.file(samplesheet)
     ).outputs(
         pdbs=dsl.file("pdbs")
     ).calls(download_pdbs)()
