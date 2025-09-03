@@ -247,11 +247,10 @@ def collabfold_dag(dsl, multimer_batch, samplesheet, collabfold_task_conf_func):
                     export XLA_PYTHON_CLIENT_ALLOCATOR="platform"
                     export TF_FORCE_GPU_ALLOW_GROWTH="true"
                     
-                    echo "pdb_folder: $pdb_folder
-                    echo "check: $__pipeline_instance_dir/pdbs"
+                    echo "pdb_folder: $pdb_folder                    
                                     
                     if [[ "$has_pdbs" == "True" ]]; then
-                       template_args="--templates 1 --custom-template-path $__pipeline_instance_dir/pdbs"
+                       template_args="--templates 1 --custom-template-path $pdb_folder"
                     else
                        template_args=""
                     fi
