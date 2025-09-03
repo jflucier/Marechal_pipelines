@@ -57,6 +57,17 @@ def generate_fasta_colabfold(samplesheet, multimer_name, fa_out):
     return multimer.generate_fasta_colabfold(fa_out)
 
 
+@DryPipe.python_call()
+def download_pdbs(samplesheet, pdb_folder):
+
+    multimer_batch = parse_multimer_list_from_samplesheet(samplesheet)
+
+    pdb_dir = Path(pdb_folder)
+    if not pdb_dir.exists():
+        pdb_dir.mkdir(parents=False)
+
+    multimer_batch.download_pdbs(pdb_dir)
+
 
 
 @DryPipe.python_call()
@@ -122,13 +133,22 @@ def generate_aggregate_report(__pipeline_instance_dir, interfaces_csv, summary_c
 
 
 
-def collabfold_dag(dsl, list_of_multimers, samplesheet, collabfold_task_conf_func):
+def collabfold_dag(dsl, multimer_batch, samplesheet, collabfold_task_conf_func):
+
 
     colabfold_search_slurm_options = ["--time=24:00:00 --mem=40G --cpus-per-task=8"]
 
-    colabfold_fold_slurm_options = ["--time=8:00:00 --mem=120G --cpus-per-task=12 --gpus-per-node=1"]
+    colabfold_fold_slurm_options = ["--time=12:00:00 --mem=120G --cpus-per-task=12 --gpus-per-node=1"]
 
-    for multimer in list_of_multimers:
+    download_pdbs_task = dsl.task(
+        key=f"cf-download-pdbs"
+    ).outputs(
+        pdbs=dsl.file("pdbs")
+    ).calls(download_pdbs)()
+
+    yield download_pdbs_task
+
+    for multimer in multimer_batch:
 
         multimer_name = multimer.multimer_name()
 
@@ -139,6 +159,8 @@ def collabfold_dag(dsl, list_of_multimers, samplesheet, collabfold_task_conf_fun
         ).inputs(
             samplesheet=dsl.file(samplesheet),
             multimer_name=multimer_name,
+            pdbs=download_pdbs_task.outputs.pdbs,
+            fold_name=str(multimer.fold_name()),
             code_dep1=dsl.file(__file__),
             code_dep2=dsl.file(multimer_code_file()),
             code_dep3=dsl.file(colabfold_analysis.code_path())
@@ -196,7 +218,10 @@ def collabfold_dag(dsl, list_of_multimers, samplesheet, collabfold_task_conf_fun
                 colabfold_analysis_script=dsl.file(colabfold_analysis.code_path()),
                 code_dep1=dsl.file(__file__),
                 code_dep2=dsl.file(multimer_code_file()),
-                multimer_name=multimer_name
+                pdbs=download_pdbs_task.outputs.pdbs,
+                multimer_name=multimer_name,
+                fold_name=search_task.inputs.fold_name,
+                has_pdbs=str("True" if multimer_batch.multimer_by_name(multimer_name).has_pdbs() else "False")
             ).outputs(
                 relaxed_pdb=dsl.file(f'fold.fa'),
                 unrelaxed_pdb=dsl.file(f'0.a3m'),
@@ -216,17 +241,23 @@ def collabfold_dag(dsl, list_of_multimers, samplesheet, collabfold_task_conf_fun
                 export TF_FORCE_UNIFIED_MEMORY="1"
                 export XLA_PYTHON_CLIENT_MEM_FRACTION="4.0"
                 export XLA_PYTHON_CLIENT_ALLOCATOR="platform"
-                export TF_FORCE_GPU_ALLOW_GROWTH="true"                                                    
+                export TF_FORCE_GPU_ALLOW_GROWTH="true"
+                                
+                if [[ "$has_pdbs" == "True" ]]; then
+                   template_args="--templates 1 --custom-template-path $__pipeline_instance_dir/pdbs"
+                else
+                   template_args=""
+                fi
                 
                 echo "pb1: $python_bin"
                 echo "pb2: $TASK_VENV/bin/python3"
 
                 echo "running colabfold fold"
-                colabfold_batch \\
+                colabfold_batch $template_args \\
                   --use-gpu-relax --amber --num-relax 3 \\
                   --num-models 3 \\
                   --num-recycle 30 --recycle-early-stop-tolerance 0.5 \\
-                  --model-type auto \\
+                  --model-type auto \\                                    
                   --data $collabfold_db \\
                   $a3m \\
                   $__task_output_dir
