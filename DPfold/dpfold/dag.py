@@ -45,15 +45,13 @@ def parse_and_validate_input_files(pipeline_instance_dir):
     return dict(go()), samplesheet, multimers, pipeline_instance_args
 
 
-@DryPipe.python_call()
-def generate_pdb(samplesheet, multimer_name, __task_output_dir):
-    multimer = parse_multimer_list_from_samplesheet(samplesheet, multimer_name)[0]
-    multimer.generate_pdb(__task_output_dir)
-
 
 @DryPipe.python_call()
 def generate_fasta_colabfold(samplesheet, multimer_name, fa_out):
-    multimer = parse_multimer_list_from_samplesheet(samplesheet, multimer_name)[0]
+    multimer_batch = parse_multimer_list_from_samplesheet(samplesheet)
+
+    multimer = multimer_batch.multimer_by_name(multimer_name)
+
     return multimer.generate_fasta_colabfold(fa_out)
 
 

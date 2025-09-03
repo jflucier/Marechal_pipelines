@@ -243,12 +243,8 @@ def init_app():
 
         if samplesheet.exists():
 
-            has_pdbs = False
-
             try:
-                multimer_batch = parse_multimer_list_from_samplesheet(samplesheet)
-                has_pdbs = multimer_batch.has_pdbs()
-                all_pdbs_present = multimer_batch.all_pdps_in_folder(f"/{pid}/pdbs")
+                parse_multimer_list_from_samplesheet(samplesheet)
                 samplesheet_parse_exception = None
             except Exception as e:
                 samplesheet_parse_exception = e
@@ -256,8 +252,6 @@ def init_app():
             return {
                 "name": "samplesheet.tsv",
                 "exists": True,
-                "hasPdbs": has_pdbs,
-                "allPdbsPresent": all_pdbs_present,
                 "isValid": samplesheet_parse_exception is None,
                 "errors": None if samplesheet_parse_exception is None else str(samplesheet_parse_exception)
             }
@@ -265,21 +259,6 @@ def init_app():
         return {
             "name": "samplesheet.tsv",
             "exists": False
-        }
-
-    @api.get("/preDownloadPDBs/{pid:path}")
-    async def pre_download_pdbs(pid: str):
-        samplesheet = Path(f"/{pid}", "samplesheet.tsv")
-        multimer_batch = parse_multimer_list_from_samplesheet(samplesheet)
-
-        pdb_dir = Path(f"/{pid}/pdbs")
-        if not pdb_dir.exists():
-            pdb_dir.mkdir(parents=False)
-
-        multimer_batch.download_pdbs(pdb_dir)
-
-        return {
-            "ok": True
         }
 
 
