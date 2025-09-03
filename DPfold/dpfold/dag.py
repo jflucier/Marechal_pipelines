@@ -176,7 +176,7 @@ def collabfold_dag(dsl, multimer_batch, samplesheet, collabfold_task_conf_func):
     
                 set -ex
                 
-                echo "pdb_folder: $pdb_folder
+                echo "pdb_folder: $pdb_folder"
                 
                 mkdir -p $HOME/.licenses/
                 touch $HOME/.licenses/intel
@@ -247,13 +247,15 @@ def collabfold_dag(dsl, multimer_batch, samplesheet, collabfold_task_conf_func):
                     export XLA_PYTHON_CLIENT_ALLOCATOR="platform"
                     export TF_FORCE_GPU_ALLOW_GROWTH="true"
                     
-                    echo "pdb_folder: $pdb_folder                    
+                    echo "pdb_folder: $pdb_folder"                    
                                     
                     if [[ "$has_pdbs" == "True" ]]; then
                        template_args="--templates 1 --custom-template-path $pdb_folder"
                     else
                        template_args=""
                     fi
+                    
+                    echo "template_args: $template_args"
                     
                     echo "pb1: $python_bin"
                     echo "pb2: $TASK_VENV/bin/python3"
