@@ -739,6 +739,13 @@ def analyze_multimer(
         #chain_list_lbl = list(lbls_from_fasta())
         chain_list_lbl = multimer_name.split("-")
 
+        fold_name = os.environ.get('fold_name')
+
+        if fold_name is not None and fold_name != "":
+            print(f"Will use fold_name: {fold_name}")
+            chain_list_lbl = fold_name.split("-")
+
+
         print(f"chain list: {chain_list}")
         print(f"chain list lbl: {chain_list_lbl}")
         print(f"-> retrieving contacts for model {model_num}")

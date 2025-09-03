@@ -267,5 +267,6 @@ if __name__ == '__main__':
 
     for m in multimers:
         print(m.multimer_name())
+        print("  -> "+ m.fold_name())
         #if m.has_pdbs():
         #    m.generate_pdb("/home/maxl/dev/Marechal_pipelines/tmp/pdbs")

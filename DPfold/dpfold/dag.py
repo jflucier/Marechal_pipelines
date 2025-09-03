@@ -178,6 +178,8 @@ def collabfold_dag(dsl, multimer_batch, samplesheet, collabfold_task_conf_func):
     
                 set -ex
                 
+                echo "pdb_folder: $pdb_folder
+                
                 mkdir -p $HOME/.licenses/
                 touch $HOME/.licenses/intel
     
