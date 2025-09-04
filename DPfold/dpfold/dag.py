@@ -224,7 +224,7 @@ def collabfold_dag(dsl, multimer_batch, samplesheet, collabfold_task_conf_func):
                     code_dep2=dsl.file(multimer_code_file()),
                     pdb_folder=download_pdbs_task.outputs.pdb_folder,
                     multimer_name=multimer_name,
-                    fold_name=search_task.inputs.fold_name,
+                    fold_name=str(search_task.inputs.fold_name),
                     has_pdbs=str("True" if multimer_batch.multimer_by_name(multimer_name).has_pdbs() else "False")
                 ).outputs(
                     relaxed_pdb=dsl.file(f'fold.fa'),
