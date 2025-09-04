@@ -265,7 +265,7 @@ def collabfold_dag(dsl, multimer_batch, samplesheet, collabfold_task_conf_func):
                       --use-gpu-relax --amber --num-relax 3 \\
                       --num-models 3 \\
                       --num-recycle 30 --recycle-early-stop-tolerance 0.5 \\
-                      --model-type auto \\                                    
+                      --model-type auto \\
                       --data $collabfold_db \\
                       $a3m \\
                       $__task_output_dir
