@@ -250,7 +250,7 @@ def collabfold_dag(dsl, multimer_batch, samplesheet, collabfold_task_conf_func):
                     echo "pdb_folder: $pdb_folder"                    
                                     
                     if [[ "$has_pdbs" == "True" ]]; then
-                       template_args="--templates 1 --custom-template-path $pdb_folder"
+                       template_args="--templates --custom-template-path $pdb_folder"
                     else
                        template_args=""
                     fi
