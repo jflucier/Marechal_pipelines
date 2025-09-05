@@ -27,7 +27,11 @@ def init_logging():
 
     logging_conf = os.environ.get("LOGGING_CONF")
 
-    if logging_conf is not None and Path(logging_conf).exists():
+    if logging_conf is not None:
+
+        if not Path(logging_conf).exists():
+            raise Exception(f"logging config file '{logging_conf}' refered by env var LOGGING_CONF does not exist")
+
         with open(logging_conf, "r") as f:
             log_conf_json = json.load(f)
 
