@@ -165,7 +165,8 @@ def start_pipeline_runner():
                     validator=validate_dp_fold,
                     spartan_schema=None,
                     default_args={},
-                    complete_func=dpfold_completion_func
+                    complete_func=dpfold_completion_func,
+                    pre_run_filters=["cf-download-pdbs"]
                )
 
     pipeline_runner = PipelineRunner(
@@ -321,7 +322,7 @@ def run():
     logger = logging.getLogger(__name__)
     logger.info(f"starting web app on port {port}")
 
-    uvicorn.run(app="dpfold.server:init_app", host="0.0.0.0", port=port, workers=4)
+    uvicorn.run(app="dpfold.server:init_app", host="0.0.0.0", port=port, workers=1)
 
 if __name__ == '__main__':
 

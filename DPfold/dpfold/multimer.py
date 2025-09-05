@@ -1,7 +1,8 @@
 import os
+from io import StringIO
 from itertools import islice, groupby
 from dataclasses import dataclass
-from typing import List
+from pathlib import Path
 
 
 @dataclass
@@ -20,10 +21,7 @@ class Multimer:
 
 
     def has_pdbs(self):
-        for protein in self.proteins:
-            if protein.pdb is not None and protein.pdb != "":
-                return True
-        return False
+        return len(list(self.all_pdbs())) > 0
 
     def protein_count(self):
         return len(self.proteins)
@@ -127,7 +125,7 @@ class Multimer:
             # download pdb if pdb id is provided
             pdb_out = os.path.join(output_dir, f"{pdb.lower()}.cif")
             if os.path.exists(pdb_out):
-                print(f"{pdb_out} already found. No need to re-download")
+                pass
             else:
                 print(f"Downloading and generating pdb: {pdb}")
                 URL = f"https://files.rcsb.org/download/{pdb}.cif"
@@ -246,6 +244,31 @@ class MultimerBatch:
         for m in self.multimer_list:
             m.generate_pdbs(folder)
 
+
+        # validate PDBs, examples of bad (multi model) : 2KHW,2KTF
+
+        from Bio.PDB import MMCIFParser
+
+        cif_files = folder.glob("*.cif")
+
+        multi_model_pdbs = []
+
+        for cif_file in cif_files:
+            with open(cif_file) as f:
+                cif_string = f.read()
+            cif_fh = StringIO(cif_string)
+            parser = MMCIFParser(QUIET=True)
+            structure = parser.get_structure("none", cif_fh)
+            models = list(structure.get_models())
+            model_count = len(models)
+            if model_count != 1:
+                pdb_name = cif_file.name.split(".")[0]
+                multi_model_pdbs.append(f"{pdb_name} has {model_count} models")
+
+        if len(multi_model_pdbs) > 0:
+            raise Exception(f"The following PDBs contain more than one model: {multi_model_pdbs}")
+
+
     def all_pdps_in_folder(self, folder):
         for m in self.multimer_list:
             for pdb in m.all_pdbs():
@@ -263,10 +286,12 @@ def file_path():
 
 if __name__ == '__main__':
 
-    multimers = parse_multimer_list_from_samplesheet("/home/maxl/dev/Marechal_pipelines/example/test-case-1/samplesheet.tsv")
+    from Bio.PDB import MMCIFParser
 
-    for m in multimers:
-        print(m.multimer_name())
-        print("  -> "+ m.fold_name())
-        #if m.has_pdbs():
-        #    m.generate_pdb("/home/maxl/dev/Marechal_pipelines/tmp/pdbs")
+
+    multimer_batch = parse_multimer_list_from_samplesheet("/home/maxl/dev/Marechal_pipelines/example/test-case-1/samplesheet.tsv")
+
+    pdb_path = Path("/home/maxl/dev/Marechal_pipelines/tmp/pdbs")
+
+    multimer_batch.download_pdbs(pdb_path)
+

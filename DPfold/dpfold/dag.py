@@ -1,6 +1,6 @@
-import glob
 import os.path
 import zipfile
+from io import StringIO
 from pathlib import Path
 import json
 
@@ -134,12 +134,12 @@ def generate_aggregate_report(__pipeline_instance_dir, interfaces_csv, summary_c
 def collabfold_dag(dsl, multimer_batch, samplesheet, collabfold_task_conf_func):
 
 
-    colabfold_search_slurm_options = ["--time=24:00:00 --mem=40G --cpus-per-task=8"]
+    colabfold_search_slurm_options = ["--time=48:00:00 --mem=40G --cpus-per-task=8"]
 
     colabfold_fold_slurm_options = ["--time=12:00:00 --mem=120G --cpus-per-task=12 --gpus-per-node=1"]
 
     download_pdbs_task = dsl.task(
-        key=f"cf-download-pdbs"
+        key="cf-download-pdbs"
     ).inputs(
         samplesheet=dsl.file(samplesheet)
     ).outputs(
