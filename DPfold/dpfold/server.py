@@ -195,6 +195,8 @@ def start_pipeline_runner():
 
 def init_app():
 
+    init_logging()
+
     app = FastAPI()
 
     app.add_middleware(
