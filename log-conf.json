@@ -18,6 +18,11 @@
       "level": "INFO",
       "handlers": ["file"]
     },
+    "web_gasket": {
+      "level": "INFO",
+      "handlers": ["file"],
+      "propagate": 0
+    },
     "uvicorn.access": {
       "level": "INFO",
       "propagate": 0,
