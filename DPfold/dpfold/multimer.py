@@ -117,9 +117,18 @@ class Multimer:
                 else:
                     yield pdb
 
+    def has_pdb(self, pdb_name):
+        for pdb in self.all_pdbs():
+            if pdb.casefold() == pdb_name.casefold():
+                return True
+        return False
+
     def generate_pdbs(self, output_dir):
 
         import requests
+        from Bio.PDB import MMCIFParser
+
+        multi_model_pdbs = []
 
         for pdb in self.all_pdbs():
             # download pdb if pdb id is provided
@@ -130,19 +139,34 @@ class Multimer:
                 print(f"Downloading and generating pdb: {pdb}")
                 URL = f"https://files.rcsb.org/download/{pdb}.cif"
                 response = requests.get(URL)
-                with open(pdb_out, 'w') as out:
-                    out.write(response.text)
-                    # modify cif file to include new section. Change name to pdb
-                    # https://github.com/sokrypton/ColabFold/issues/177
-                    out.write('#\n')
-                    out.write('loop_\n')
-                    out.write('_pdbx_audit_revision_history.ordinal\n')
-                    out.write('_pdbx_audit_revision_history.data_content_type\n')
-                    out.write('_pdbx_audit_revision_history.major_revision\n')
-                    out.write('_pdbx_audit_revision_history.minor_revision\n')
-                    out.write('_pdbx_audit_revision_history.revision_date\n')
-                    out.write('1 \'Structure model\' 1 0 1971-01-01\n')
-                    out.write('#\n')
+
+                out = StringIO()
+                out.write(response.text)
+                # modify cif file to include new section. Change name to pdb
+                # https://github.com/sokrypton/ColabFold/issues/177
+                out.write('#\n')
+                out.write('loop_\n')
+                out.write('_pdbx_audit_revision_history.ordinal\n')
+                out.write('_pdbx_audit_revision_history.data_content_type\n')
+                out.write('_pdbx_audit_revision_history.major_revision\n')
+                out.write('_pdbx_audit_revision_history.minor_revision\n')
+                out.write('_pdbx_audit_revision_history.revision_date\n')
+                out.write('1 \'Structure model\' 1 0 1971-01-01\n')
+                out.write('#\n')
+
+
+                # validate PDBs, examples of bad (multi model) : 2KHW,2KTF
+
+                pdb_as_string = out.getvalue()
+                parser = MMCIFParser(QUIET=True)
+                structure = parser.get_structure("none", StringIO(pdb_as_string))
+                models = list(structure.get_models())
+                model_count = len(models)
+                if model_count != 1:
+                    yield f"{pdb} on line {self.line_number_in_samplesheet} has {model_count} models"
+                else:
+                    with open(pdb_out, "w") as f:
+                       f.write(pdb_as_string)
 
 
 def parse_multimer_list_from_samplesheet(samplesheet, single_multimer_name=None, include_single_prots=True):
@@ -240,34 +264,18 @@ class MultimerBatch:
                 return True
         return False
 
-    def download_pdbs(self, folder):
+    def lines_of_pdb(self, pdb_name):
         for m in self.multimer_list:
-            m.generate_pdbs(folder)
+            if m.has_pdb(pdb_name):
+                yield m.line_number_in_samplesheet
 
+    def download_pdbs(self, folder):
 
-        # validate PDBs, examples of bad (multi model) : 2KHW,2KTF
+        def gen_and_yield_errors():
+            for m in self.multimer_list:
+                yield from m.generate_pdbs(folder)
 
-        from Bio.PDB import MMCIFParser
-
-        cif_files = folder.glob("*.cif")
-
-        multi_model_pdbs = []
-
-        for cif_file in cif_files:
-            with open(cif_file) as f:
-                cif_string = f.read()
-            cif_fh = StringIO(cif_string)
-            parser = MMCIFParser(QUIET=True)
-            structure = parser.get_structure("none", cif_fh)
-            models = list(structure.get_models())
-            model_count = len(models)
-            if model_count != 1:
-                pdb_name = cif_file.name.split(".")[0]
-                multi_model_pdbs.append(f"{pdb_name} has {model_count} models")
-
-        if len(multi_model_pdbs) > 0:
-            raise Exception(f"The following PDBs contain more than one model: {multi_model_pdbs}")
-
+        return list(gen_and_yield_errors())
 
     def all_pdps_in_folder(self, folder):
         for m in self.multimer_list:
@@ -285,8 +293,6 @@ def file_path():
 
 
 if __name__ == '__main__':
-
-    from Bio.PDB import MMCIFParser
 
 
     multimer_batch = parse_multimer_list_from_samplesheet("/home/maxl/dev/Marechal_pipelines/example/test-case-1/samplesheet.tsv")

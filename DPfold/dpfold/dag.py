@@ -1,6 +1,5 @@
 import os.path
 import zipfile
-from io import StringIO
 from pathlib import Path
 import json
 
@@ -64,8 +63,15 @@ def download_pdbs(samplesheet, pdb_folder):
     if not pdb_dir.exists():
         pdb_dir.mkdir(parents=False)
 
-    multimer_batch.download_pdbs(pdb_dir)
-
+    try:
+        bad_pdbs = multimer_batch.download_pdbs(pdb_dir)
+        for bad_pdb_msg in bad_pdbs:
+            print(f"WEB_GASKET_ERROR: {bad_pdb_msg}")
+        if len(bad_pdbs) > 0:
+            raise Exception(f"samplesheet.tsv contains bad PDBs, please correct it. Only single model PDBs are supported.")
+    except Exception as e:
+        print(f"WEB_GASKET_ERROR: {e}")
+        raise e
 
 
 @DryPipe.python_call()
@@ -201,7 +207,7 @@ def collabfold_dag(dsl, multimer_batch, samplesheet, collabfold_task_conf_func):
             """)()
             yield colabfold_search_task
 
-        for match in dsl.query_all_or_nothing("cf-search.*", state="ready"):
+        for _ in dsl.query_all_or_nothing("cf-search.*", state="ready"):
             yield dsl.task(
                 key=f"cf-search-array",
                 task_conf=collabfold_task_conf_func(colabfold_search_slurm_options)

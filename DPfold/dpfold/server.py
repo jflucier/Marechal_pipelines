@@ -1,18 +1,14 @@
 import json
-import logging
-import time
 import os
 from pathlib import Path
-from threading import Thread
 
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.requests import Request
 
-from dpfold.dag import colabfold_pipeline, parse_and_validate_input_files
 from dpfold.multimer import parse_multimer_list_from_samplesheet
-from dry_pipe.pipeline import PipelineType
+from dpfold.pipeline_conf import gen_conf
 from dry_pipe.service import PipelineRunner
 
 from web_gasket.routes import init_page_and_upload_routes, create_sub_api
@@ -69,6 +65,16 @@ def init_logging():
           "root": {
             "level": "DEBUG",
             "handlers": ["console"]
+          },
+          "web_gasket": {
+              "level": "DEBUG",
+              "handlers": ["console"],
+              "propagate": 0
+          },
+          "dry_pipe": {
+              "level": "DEBUG",
+              "handlers": ["console"],
+              "propagate": 0
           }
         }
 
@@ -113,84 +119,6 @@ def parse_permissions(user_email):
 
     return []
 
-# def-rodrigu1
-
-def start_pipeline_runner():
-
-    def read_dir_from_env_var(name):
-
-        v = os.environ.get(name)
-        if v is None:
-            raise Exception(f"missing env var {name}")
-        if not os.path.exists(v):
-            raise Exception(f"dir {v} specified by {name} must exist")
-
-        return str(v)
-
-    WEB_GASKET_TEMP_FILE_UPLOAD_DIR = os.environ.get("WEB_GASKET_TEMP_FILE_UPLOAD_DIR")
-
-    if WEB_GASKET_TEMP_FILE_UPLOAD_DIR is None:
-        WEB_GASKET_TEMP_FILE_UPLOAD_DIR = "/tmp/ibio-reception-dir"
-
-    Path(WEB_GASKET_TEMP_FILE_UPLOAD_DIR).mkdir(exist_ok=True, parents=True)
-
-    pipeline_run_site = read_dir_from_env_var("PIPELINE_INSTANCES_DIR")
-    pipeline_code_dir = str(Path(__file__).parent.parent)
-    dp_fold_instances_dir = str(Path(pipeline_run_site, "dp-fold"))
-    Path(dp_fold_instances_dir).mkdir(exist_ok=True)
-
-    def g():
-
-        common_schemas = {
-            "schema": {
-                "cc_cluster": ['enum', 'narval'],
-                "cc_project": "string",
-                "cc_allocation": "string"
-            }
-        }
-
-        def dpfold_completion_func(pipeline_instance_dir):
-            zipz = list(Path(pipeline_instance_dir, "output", "of-aggregate-report").glob("*.zip"))
-            if len(zipz) > 0:
-                csvs = Path(pipeline_instance_dir, "output", "of-aggregate-report").glob("*.csv")
-                yield True, list(csvs) + zipz
-            else:
-                yield False, []
-
-        def validate_dp_fold(pipeline_instance_dir):
-            errors, samplesheet, multimers, _ = parse_and_validate_input_files(pipeline_instance_dir)
-
-            return errors, None
-
-        yield dp_fold_instances_dir, \
-               PipelineType(
-                   "DPFold",
-                    pipeline=colabfold_pipeline(),
-                    validator=validate_dp_fold,
-                    spartan_schema=None,
-                    default_args={},
-                    complete_func=dpfold_completion_func,
-                    pre_run_filters=["cf-download-pdbs"]
-               )
-
-    pipeline_runner = PipelineRunner(
-        g(),
-        run_sync=True,
-        run_tasks_in_process=True,
-        sleep_schedule=[0, 0, 0, 1]
-    )
-
-    def work_on_pipelines():
-        for suggested_sleep in pipeline_runner.iterate_work():
-            if suggested_sleep > 0:
-                time.sleep(suggested_sleep)
-
-    t = Thread(target=work_on_pipelines)
-
-    t.start()
-
-    return pipeline_runner
-
 
 
 def init_app():
@@ -216,12 +144,16 @@ def init_app():
         ]
     )
 
-    pipeline_runner = start_pipeline_runner()
+    WEB_GASKET_TEMP_FILE_UPLOAD_DIR = os.environ.get("WEB_GASKET_TEMP_FILE_UPLOAD_DIR")
 
+    if WEB_GASKET_TEMP_FILE_UPLOAD_DIR is None:
+        WEB_GASKET_TEMP_FILE_UPLOAD_DIR = "/tmp/ibio-reception-dir"
 
+    Path(WEB_GASKET_TEMP_FILE_UPLOAD_DIR).mkdir(exist_ok=True, parents=True)
+
+    pipeline_runner = PipelineRunner(gen_conf())
 
     api = create_sub_api(pipeline_runner)
-
 
     @api.get("/cc_allocations")
     async def cc_allocations(request: Request):
@@ -308,7 +240,7 @@ def init_app():
         60*30
     )
 
-    authenticator.init_routes(api, app, page_func)
+    authenticator.init_routes(api, app, page_func, web_artifacts_dir)
 
     init_page_and_upload_routes(app, authenticator, page_func, web_artifacts_dir)
 
