@@ -165,7 +165,10 @@ def collabfold_dag(dsl, multimer_batch, samplesheet, collabfold_task_conf_func):
             colabfold_search_task = dsl.task(
                 key=f"cf-fold.{multimer_name}",
                 is_slurm_array_child=True,
-                task_conf=TaskConf(extra_env=tc.extra_env)
+                task_conf=TaskConf(
+                    extra_env=tc.extra_env,
+                    python_bin=tc.python_bin
+                )
             ).inputs(
                 samplesheet=dsl.file(samplesheet),
                 multimer_name=multimer_name,
