@@ -139,10 +139,14 @@ def generate_aggregate_report(__pipeline_instance_dir, interfaces_csv, summary_c
 
 def collabfold_dag(dsl, multimer_batch, samplesheet, collabfold_task_conf_func):
 
+    tc = collabfold_task_conf_func([])
 
-    colabfold_search_slurm_options = ["--time=48:00:00 --mem=40G --cpus-per-task=8"]
+    colabfold_search_slurm_options = ["--time=48:00:00","--mem=40G", "--cpus-per-task=8"]
 
-    colabfold_fold_slurm_options = ["--time=12:00:00 --mem=120G --cpus-per-task=12 --gpus-per-node=1"]
+    colabfold_fold_slurm_options = [
+        "--time=12:00:00", "--mem=120G", "--cpus-per-task=12",
+        "--gpus-per-node=1", f"--account={tc.slurm_account}"
+    ]
 
     download_pdbs_task = dsl.task(
         key="cf-download-pdbs"
@@ -153,8 +157,6 @@ def collabfold_dag(dsl, multimer_batch, samplesheet, collabfold_task_conf_func):
     ).calls(download_pdbs)()
 
     yield download_pdbs_task
-
-    tc = collabfold_task_conf_func(colabfold_search_slurm_options)
 
     for _ in dsl.query_all_or_nothing("cf-download-pdbs", state="completed"):
 
