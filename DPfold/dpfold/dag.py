@@ -77,43 +77,33 @@ def download_pdbs(samplesheet, pdb_folder):
 @DryPipe.python_call()
 def generate_aggregate_report(__pipeline_instance_dir, interfaces_csv, summary_csv, contacts_csv, all_zip, __task_output_dir):
 
-    def gen_interfaces_lines():
+    def concat_files_keep_first_header(glob_exp, out_file, out_header=None):
+        out_line_counter = 0
+        with open(out_file, "w") as out_f:
+            for file_to_concat in Path(__pipeline_instance_dir, "output").glob(glob_exp):
+                with open(file_to_concat) as f_f:
+                    for line in f_f:
+                        if line.startswith("complex_name,"):
+                            if out_line_counter == 0:
+                                if out_header is not None:
+                                    out_f.write(line)
+                                else:
+                                    out_f.write(out_header)
 
-        yield "fold_name,complex_name,model_num,pdockq,ncontacts,plddt_min,plddt_avg,plddt_max,pae_min,pae_avg,pae_max,distance_avg"
+                        else:
+                            out_f.write(line)
+                        out_line_counter += 1
 
-        for interfaces in Path(__pipeline_instance_dir, "output").glob("*/interfaces.csv"):
-            with open(interfaces) as f_interfaces:
-                for line in f_interfaces:
-                    yield line.strip()
 
-    def gen_summary_lines():
-        yield "fold_name,complex_name,avg_n_models,max_n_models,num_contacts_with_max_n_models,num_unique_contacts,best_model_num,best_pdockq,best_plddt_avg,best_pae_avg"
+    concat_files_keep_first_header(
+        "*/interfaces.csv",
+        interfaces_csv,
+        "complex_name,model_num,num_contacts,plddt,pae,distance_avg,pdockq,model_all_avg_pdockq,model_all_avg_plddt,model_all_avg_pae\n"
+        )
 
-        for summary in Path(__pipeline_instance_dir, "output").glob("*/summary.csv"):
-            with open(summary) as f_summary:
-                for line in f_summary:
-                    yield line.strip()
+    concat_files_keep_first_header("*/summary.csv", summary_csv)
 
-    def gen_contact_lines():
-
-        yield "fold_name,complex_name,model_num,aa1_chain,aa1_index,aa1_type,aa1_plddt,aa2_chain,aa2_index,aa2_type,aa2_plddt,pae,min_distance"
-
-        for contact in Path(__pipeline_instance_dir, "output").glob("*/contacts.csv"):
-            with open(contact) as f_contact:
-                for line in f_contact:
-                    yield line.strip()
-
-    def flush_lines_into(lines, file):
-        with open(file, "w") as f:
-            for line in lines:
-                f.write(line)
-                f.write("\n")
-
-    flush_lines_into(gen_interfaces_lines(), interfaces_csv)
-
-    flush_lines_into(gen_summary_lines(), summary_csv)
-
-    flush_lines_into(gen_contact_lines(), contacts_csv)
+    concat_files_keep_first_header("*/contacts.csv", contacts_csv)
 
     fold_outfile = Path(__pipeline_instance_dir, "output").glob("cf-fold.*/*")
 
@@ -263,7 +253,6 @@ def collabfold_dag(dsl, multimer_batch, samplesheet, collabfold_task_conf_func):
                     --fasta=$fa_out
 
                 echo "done"
-
                 """,
                 sbatch_options=colabfold_fold_slurm_options
             )()
