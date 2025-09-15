@@ -86,9 +86,9 @@ def generate_aggregate_report(__pipeline_instance_dir, interfaces_csv, summary_c
                         if line.startswith("complex_name,"):
                             if out_line_counter == 0:
                                 if out_header is not None:
-                                    out_f.write(line)
-                                else:
                                     out_f.write(out_header)
+                                else:
+                                    out_f.write(line)
 
                         else:
                             out_f.write(line)
