@@ -173,7 +173,8 @@ def collabfold_dag(dsl, multimer_batch, samplesheet, collabfold_task_conf_func):
                 has_pdbs=str("True" if multimer_batch.multimer_by_name(multimer_name).has_pdbs() else "False")
             ).outputs(
                 fa_out=dsl.file(f'fold.fa'),
-                a3m=dsl.file(f'0.a3m')
+                a3m=dsl.file(f'0.a3m'),
+                all_results=dsl.file_set("**/*", exclude_pattern="*.pkl|*.pickle")
             ).calls(
                 generate_fasta_colabfold
             ).calls(
