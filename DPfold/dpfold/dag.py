@@ -127,7 +127,9 @@ def collabfold_dag(dsl, multimer_batch, samplesheet, collabfold_task_conf_func):
 
     tc = collabfold_task_conf_func([])
 
-    colabfold_search_slurm_options = ["--time=48:00:00","--mem=120G", "--cpus-per-task=24"]
+    n_cpu_4_search = 24
+
+    colabfold_search_slurm_options = ["--time=32:00:00","--mem=120G", f"--cpus-per-task={n_cpu_4_search}"]
 
     colabfold_fold_slurm_options = [
         "--time=12:00:00", "--mem=120G", "--cpus-per-task=12",
@@ -166,7 +168,8 @@ def collabfold_dag(dsl, multimer_batch, samplesheet, collabfold_task_conf_func):
                 code_dep2=dsl.file(multimer_code_file()),
                 code_dep3=dsl.file(colabfold_analysis.code_path()),
                 colabfold_analysis_script=dsl.file(colabfold_analysis.code_path()),
-                has_pdbs=str("True" if multimer_batch.multimer_by_name(multimer_name).has_pdbs() else "False")
+                has_pdbs=str("True" if multimer_batch.multimer_by_name(multimer_name).has_pdbs() else "False"),
+                n_cpu_4_search=int(n_cpu_4_search)
             ).outputs(
                 fa_out=dsl.file(f'fold.fa'),
                 a3m=dsl.file(f'0.a3m'),
@@ -192,7 +195,7 @@ def collabfold_dag(dsl, multimer_batch, samplesheet, collabfold_task_conf_func):
     
                 echo "running colabfold search"
                 colabfold_search \\
-                  --threads 8 --use-env 1 --db-load-mode 0 \\
+                  --threads $n_cpu_4_search --use-env 1 --db-load-mode 0 \\
                   --mmseqs mmseqs \\
                   --db1 $collabfold_db/uniref30_2302_db \\
                   --db2 $collabfold_db/pdb100_230517 \\
