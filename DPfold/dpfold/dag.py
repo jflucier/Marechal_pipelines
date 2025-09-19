@@ -127,7 +127,7 @@ def collabfold_dag(dsl, multimer_batch, samplesheet, collabfold_task_conf_func):
 
     tc = collabfold_task_conf_func([])
 
-    colabfold_search_slurm_options = ["--time=48:00:00","--mem=40G", "--cpus-per-task=8"]
+    colabfold_search_slurm_options = ["--time=48:00:00","--mem=120G", "--cpus-per-task=24"]
 
     colabfold_fold_slurm_options = [
         "--time=12:00:00", "--mem=120G", "--cpus-per-task=12",

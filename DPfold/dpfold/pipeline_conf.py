@@ -7,6 +7,16 @@ from dpfold.dag import colabfold_pipeline, parse_and_validate_input_files
 from dry_pipe.pipeline import PipelineType
 
 
+class DPFoldPT(PipelineType):
+
+    def task_sort_key(self, state_file):
+        if state_file.task_key == "cf-download-pdbs":
+            return None
+
+        return state_file.task_key
+
+
+
 def gen_conf():
 
     def read_dir_from_env_var(name):
@@ -47,7 +57,7 @@ def gen_conf():
         return errors, None
 
     yield dp_fold_instances_dir, \
-           PipelineType(
+           DPFoldPT(
                "DPFold",
                 pipeline=colabfold_pipeline(),
                 validator=validate_dp_fold,
