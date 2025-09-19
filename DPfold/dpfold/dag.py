@@ -77,7 +77,7 @@ def download_pdbs(samplesheet, pdb_folder):
 @DryPipe.python_call()
 def generate_aggregate_report(__pipeline_instance_dir, interfaces_csv, summary_csv, contacts_csv, all_zip, __task_output_dir):
 
-    def concat_files_keep_first_header(glob_exp, out_file, out_header=None):
+    def concat_files_keep_first_header(glob_exp, out_file, remove_headers=True):
         out_line_counter = 0
         with open(out_file, "w") as out_f:
             for file_to_concat in Path(__pipeline_instance_dir, "output").glob(glob_exp):
@@ -85,8 +85,8 @@ def generate_aggregate_report(__pipeline_instance_dir, interfaces_csv, summary_c
                     for line in f_f:
                         if line.startswith("complex_name,"):
                             if out_line_counter == 0:
-                                if out_header is not None:
-                                    out_f.write(out_header)
+                                if remove_headers:
+                                    continue
                                 else:
                                     out_f.write(line)
 
@@ -95,11 +95,7 @@ def generate_aggregate_report(__pipeline_instance_dir, interfaces_csv, summary_c
                         out_line_counter += 1
 
 
-    concat_files_keep_first_header(
-        "*/interfaces.csv",
-        interfaces_csv,
-        "complex_name,model_num,num_contacts,plddt,pae,distance_avg,pdockq,model_all_avg_pdockq,model_all_avg_plddt,model_all_avg_pae\n"
-        )
+    concat_files_keep_first_header("*/interfaces.csv", interfaces_csv, remove_headers=False)
 
     concat_files_keep_first_header("*/summary.csv", summary_csv)
 
