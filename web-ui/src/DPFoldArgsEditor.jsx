@@ -4,13 +4,8 @@ import {useApi} from "@web-gasket/ApiSession.jsx";
 import {DefaultButton} from "@web-gasket/widgets/Buttons.jsx"
 import FileManager from "@web-gasket/components/FileManager.jsx";
 import ModalWindow from "@web-gasket/widgets/ModalWindow.jsx";
-import PipelineInstanceStartButton from "@web-gasket/components/PipelineInstanceStartButton.jsx";
-
-
-const canSaveFunc = args => {
-
-    return args.cc_cluster && args.cc_allocation && args.cc_project
-}
+import PipelineInstanceStartButton from "@web-gasket/components/PipelineInstanceStartButton.jsx"
+import PipelineInstancePreRunButton from "@web-gasket/components/PipelineInstancePreRunButton.jsx"
 
 const dpFoldArgsReducer = (state, action) => {
 
@@ -24,8 +19,14 @@ const dpFoldArgsReducer = (state, action) => {
                 },
                 customFilesStatus: null,
                 isDirty: false,
-                canSave: false,
-                fileManagerVisible: false
+                fileManagerVisible: false,
+                c: 0
+            }
+        }
+        case "setCCallocations": {
+            return {
+                ...state,
+                ccAllocations: action.allocations
             }
         }
         case "updateCustomFileStatus": {
@@ -33,9 +34,6 @@ const dpFoldArgsReducer = (state, action) => {
             return {
                 ...state,
                 customFilesStatus: {
-                    //name:
-                    //exists
-                    //isValid
                     ...action.status
                 }
             }
@@ -50,12 +48,16 @@ const dpFoldArgsReducer = (state, action) => {
                 }
             }
 
-            const canSave = canSaveFunc(nextState.args)
-
             return {
                 ...nextState,
-                canSave,
-                isDirty: true
+                isDirty: true,
+                c: state.c + 1
+            }
+        }
+        case "preRunResults": {
+            return {
+                ...state,
+                isPrepared: action.res.status === "ok"
             }
         }
         case "saved": {
@@ -73,7 +75,8 @@ const dpFoldArgsReducer = (state, action) => {
         case "closeFileManager": {
             return {
                 ...state,
-                fileManagerVisible: false
+                fileManagerVisible: false,
+                c: state.c + 1
             }
         }
         default:
@@ -83,8 +86,7 @@ const dpFoldArgsReducer = (state, action) => {
 
 
 
-const ClusterSelect = ({value, onSelect}) => {
-
+const ClusterSelect = ({value, onSelect, clusters}) => {
     return <>
         <label
             className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
@@ -95,16 +97,31 @@ const ClusterSelect = ({value, onSelect}) => {
             value={value}
         >
             <option value={""}>Choose a cluster</option>
-            <option value="narval">Narval</option>
+            {
+                clusters.map(c => <option key={c} value={c}>{c}</option>)
+            }
         </select>
         </>
 }
 
-/*
-    <option value="beluga">Beluga</option>
-    <option value="cedar">Cedar</option>
-    <option value="graham">Graham</option>
-*/
+const AllocationSelect = ({value, onSelect, allocs}) => {
+
+    return <>
+        <label
+            className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+        >Select allocation</label>
+        <select
+            className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+            onChange={e => onSelect(e.target.value)}
+            value={value}
+        >
+            <option value={""}>Choose an allocation</option>
+            {
+                allocs && allocs.map(c => <option key={c} value={c}>{c}</option>)
+            }
+        </select>
+    </>
+}
 
 
 const DPFoldArgsEditor = ({pipelineInstance, pipelineArgsDispatcher}) => {
@@ -129,7 +146,63 @@ const DPFoldArgsEditor = ({pipelineInstance, pipelineArgsDispatcher}) => {
                 status: s
             })
         })
-    }, [])
+    }, [`-${dpFoldArgsView.c}`])
+
+    useEffect(() => {
+        api.getCCAllocations().then(allocations => {
+            dpFoldArgsDispatcher({
+                name: "setCCallocations", allocations
+            })
+        })
+    },[])
+
+
+    const readyStatus = () => {
+
+        if(! dpFoldArgsView.customFilesStatus) {
+            return 0
+        }
+
+        if(!dpFoldArgsView.customFilesStatus.exists) {
+            return 0
+        }
+
+        if(!dpFoldArgsView.customFilesStatus.isValid) {
+            return 0
+        }
+
+        if(dpFoldArgsView.isDirty) {
+            return 0
+        }
+
+        if(!dpFoldArgsView.args.cc_allocation) {
+            return 0
+        }
+
+        if(!dpFoldArgsView.args.cc_cluster) {
+            return 0
+        }
+
+        if(dpFoldArgsView.args.isPrepared) {
+            return 2
+        }
+
+        return 1
+    }
+
+    const canPrepare = () => {
+
+        const s = readyStatus()
+
+        console.log(s)
+        return s > 0
+    }
+
+    const canStart = () => {
+
+        const s = readyStatus()
+        return s >= 1
+    }
 
 
     const saveArgs = () =>
@@ -185,7 +258,11 @@ const DPFoldArgsEditor = ({pipelineInstance, pipelineArgsDispatcher}) => {
 
     }
 
-    const saveDisabled = (!dpFoldArgsView.canSave) || (!dpFoldArgsView.isDirty)
+    const clusters =
+        dpFoldArgsView.ccAllocations ?
+        Object.keys(dpFoldArgsView.ccAllocations) : []
+
+    const saveDisabled = !dpFoldArgsView.isDirty
 
     const fileManagerModal = () => {
         if(! dpFoldArgsView.fileManagerVisible) {
@@ -207,11 +284,32 @@ const DPFoldArgsEditor = ({pipelineInstance, pipelineArgsDispatcher}) => {
 
     const popFileManager = () => dpFoldArgsDispatcher({name: "popFileManager"})
 
+
+    const formatDocModal = () => {
+        if(! dpFoldArgsView.formatDocModal) {
+            return
+        }
+        const closeFileManager = () => dpFoldArgsDispatcher({name: "closeFormatDoc"})
+
+        return <ModalWindow
+            title={"Sample Sheet Format"}
+            largeGrid={true}
+            onClose={closeFileManager}
+            footer={<>
+                <DefaultButton caption={"Close"} onClick={closeFileManager}/>
+            </>}
+        >
+            <DPFoldSampleSheetFormatDoc/>
+        </ModalWindow>
+    }
+
+
     return <div className="grid gap-6 mb-6 md:grid-cols-1">
         {fileManagerModal()}
             <div>
                 <ClusterSelect
                     value={dpFoldArgsView.args.cc_cluster}
+                    clusters={clusters}
                     onSelect={cluster => dpFoldArgsDispatcher({
                         name: "update",
                         fieldName: "cc_cluster",
@@ -220,40 +318,16 @@ const DPFoldArgsEditor = ({pipelineInstance, pipelineArgsDispatcher}) => {
                 />
             </div>
             <div>
-                <label className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
-                    compute allocation
-                </label>
-                <input
-                    type="text"
-                    className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
-                    placeholder="def-my-allocation"
+                <AllocationSelect
                     value={dpFoldArgsView.args.cc_allocation || ""}
-                    onChange={e => dpFoldArgsDispatcher({
+                    allocs={dpFoldArgsView.ccAllocations ? dpFoldArgsView.ccAllocations[dpFoldArgsView.args.cc_cluster] : []}
+                    onSelect={alloc => dpFoldArgsDispatcher({
                         name: "update",
                         fieldName: "cc_allocation",
-                        value: e.target.value
+                        value: alloc
                     })}
                 />
             </div>
-            {
-                false && <div>
-                    <label className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
-                        compute canada project
-                    </label>
-                    <input
-                        type="text"
-                        className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
-                        placeholder="def-my-project"
-                        value={dpFoldArgsView.args.cc_project || ""}
-                        onChange={e => dpFoldArgsDispatcher({
-                            name: "update",
-                            fieldName: "cc_project",
-                            value: e.target.value
-                        })}
-                    />
-                </div>
-            }
-
             <div className={"flex flex-row"}>
 
                 <div className={"basis-1/3"}>
@@ -269,28 +343,54 @@ const DPFoldArgsEditor = ({pipelineInstance, pipelineArgsDispatcher}) => {
                     />
                     {errorPanel()}
                 </div>
-                <div className={"basis-2/3 pt-7 ml-6"}>
+                <div className={"pt-10 ml-4 basis-1/3"}>
+                    upload "samplesheet.tsv" file
+                </div>
+                <div className={"basis-1/3 pt-7 ml-6"}>
                     <DefaultButton onClick={popFileManager} caption={"Manage pipeline Files"}/>
                 </div>
             </div>
-
             <div className={"flex flex-row"}>
                 <div>
                     <DefaultButton
                     caption={"Save"}
                     isDisabled={saveDisabled}
                     onClick={saveArgs}
-                />
+                    />
+                </div>
+                <div className={"ml-4"}>
+                    <PipelineInstancePreRunButton
+                        pipelineInstance={pipelineInstance}
+                        isReady={ canPrepare()}
+                        onReceivePreRunResponse={res => {
+                            dpFoldArgsDispatcher({name: "preRunResults", res})
+                        }}
+                    />
                 </div>
                 <div className={"ml-4"}>
                     <PipelineInstanceStartButton
-                    pipelineInstance={pipelineInstance}
-                    isReady={true}
+                        pipelineInstance={pipelineInstance}
+                        isReady={ canStart()}
+                        beforeStart={() => {
+                            return saveArgs().then(() => true)
+                        }}
+                        onReceiveStartResponse={res => {
+                            console.log(res)
+                        }}
                     />
                 </div>
+            </div>
+            <div>
+                zazdf
             </div>
         </div>
 }
 
 
 export default DPFoldArgsEditor
+
+
+
+const DPFoldSampleSheetFormatDoc = () => <div>
+
+</div>
