@@ -6,6 +6,7 @@
     wg_upload_dir: "{{web_gasket_data_dir}}/.tmp-upload"
     wg_instances_dir: "{{web_gasket_data_dir}}/pipeline-instances"
     wg_auth_db: "/home/web-gasket/web-gasket-auth.db"
+    wg_log_dir: "/var/log/web-gasket"
   become: yes
   gather_facts: no
   roles:
@@ -13,8 +14,9 @@
       when: True
       vars:
         service_name: "web-gasket"
-        log_dir: "/var/log/web-gasket"
-        service_exec_cmd: "/web-gasket_venv/bin/python3 /web-gasket/DPfold/dpfold/server.py"
+        log_dir: "{{wg_log_dir}}"
+        #service_exec_cmd: "/web-gasket_venv/bin/python3 /web-gasket/DPfold/dpfold/server.py"
+        service_exec_cmd: "/web-gasket_venv/bin/uvicorn dpfold.server:init_app --workers=4 --port 8000 --host 0.0.0.0"
         git_repo: "git@github.com:jflucier/Marechal_pipelines.git"
         branch: "{{git_branch}}"
         reqs: "/web-gasket/requirements-web-gasket.txt"
@@ -30,9 +32,10 @@
           - "USE_CC_ROBOT={{USE_CC_ROBOT}}"
           - "cc_username={{cc_username}}"
           - "CC_ALLOCATIONS_FILE=/home/web-gasket/cc_allocs.json"
+          - "DRYPIPE_DEBUG=True"
 
     - role: web_gasket
-      when: True
+      when: False
       vars:
         os_user: "web-gasket"
         work_dirs:
@@ -41,15 +44,84 @@
           - "{{wg_instances_dir}}/dp-fold"
 
     - role: javascript_spa
-      when: True
+      when: False
       vars:
         service_user: web-gasket
         src: "../web-ui/build"
         dst: /web-gasket/web-ui/build
         spa_dir: "../web-ui"
 
+  handlers:
+    - name: restart dry-pipe-service
+      ansible.builtin.systemd:
+        name: "dry-pipe-service"
+        daemon_reload: yes
+        state: restarted
+
+
   tasks:
     - ansible.builtin.copy:
-      dest: "/home/{{os_user}}/add-user.sh"
-      src: "cc_allocs.json"
-      mode: u=rw,g=r,o=r
+        dest: "/home/web-gasket/cc_allocs.json"
+        src: "cc_allocs.json"
+        owner: "web-gasket"
+        group: "web-gasket"
+        mode: u=rw,g=r,o=r
+
+    - ansible.builtin.copy:
+        dest: "/etc/systemd/system/dry-pipe-service.service"
+        content: |
+                 [Unit]
+                 After=network.target
+          
+                 [Service]
+                 TimeoutStopSec=1             
+                 User=web-gasket
+                 Group=web-gasket
+                 WorkingDirectory=/home/web-gasket
+                 EnvironmentFile=/home/web-gasket/env
+                 
+                 ExecStart=/web-gasket_venv/bin/python3 /web-gasket/DryPipe/dry_pipe/cli.py service --config-generator=dpfold.pipeline_conf:gen_conf --log-conf=/home/web-gasket/active-dry-pipe-log-conf.json
+                 #StandardOutput=file:{{wg_log_dir}}/dp-out-err.log
+                 #StandardError=file:{{wg_log_dir}}/dp-out-err.log
+          
+                 [Install]
+                 WantedBy=multi-user.target
+      notify: "restart dry-pipe-service"
+
+    - ansible.builtin.copy:
+        dest: "/home/web-gasket/dry-pipe-log-conf.json"
+        content: |
+          {
+            "version": 1,
+            "formatters": {
+              "simple": {
+                "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+              }
+            },
+            "handlers": {
+              "logfile": {
+                  "class": "logging.handlers.RotatingFileHandler",
+                  "formatter": "simple",
+                  "filename": "{{wg_log_dir}}/dry-pipe-service.log",
+                  "maxBytes": 10485760,
+                  "backupCount": 3
+              }
+            },
+            "root": {
+              "level": "DEBUG",
+              "handlers": ["logfile"]
+            },
+            "dry_pipe": {
+               "level": "DEBUG",
+               "handlers": ["logfile"],
+               "propagate": 0
+            }
+          }
+
+    - name: create a symbolic link to dry-pipe-log-conf.json
+      ansible.builtin.file:
+        src: /home/web-gasket/dry-pipe-log-conf.json
+        dest: /home/web-gasket/active-dry-pipe-log-conf.json
+        owner: web-gasket
+        group: web-gasket
+        state: link

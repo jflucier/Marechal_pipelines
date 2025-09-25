@@ -31,8 +31,8 @@
              EnvironmentFile=/home/{{service_name}}/env
              
              ExecStart={{service_exec_cmd}}
-             StandardOutput=file:{{log_dir}}/out.log
-             StandardError=file:{{log_dir}}/err.log
+             StandardOutput=file:{{log_dir}}/out-err.log
+             StandardError=file:{{log_dir}}/out-err.log
       
              [Install]
              WantedBy=multi-user.target
