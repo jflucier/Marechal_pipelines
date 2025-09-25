@@ -200,6 +200,11 @@ def init_app():
             "exists": False
         }
 
+    #@api.get("/dpFoldsStatus/{pid:path}")
+    #async def dp_folds_status(pid: str):
+
+    #    state_files = Path(f"/{pid}", ".drypipe", "samplesheet.tsv")
+
 
     user_auth_db = os.environ.get("USER_AUTH_DB")
 
@@ -260,7 +265,7 @@ def run():
     logger = logging.getLogger(__name__)
     logger.info(f"starting web app on port {port}")
 
-    uvicorn.run(app="dpfold.server:init_app", host="0.0.0.0", port=port, workers=1)
+    uvicorn.run(app="dpfold.server:init_app", host="0.0.0.0", port=port, workers=2)
 
 if __name__ == '__main__':
 

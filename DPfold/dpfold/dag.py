@@ -261,7 +261,7 @@ def collabfold_dag(dsl, multimer_batch, samplesheet, collabfold_task_conf_func):
 
         for match in dsl.query_all_or_nothing("cf-fold.*", state="ready"):
             yield dsl.task(
-                key=f"cf-fold-array",
+                key="cf-fold-array",
                 task_conf=collabfold_task_conf_func(colabfold_search_slurm_options)
             ).slurm_array_parent(
                 children_tasks=match.tasks

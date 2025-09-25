@@ -9,11 +9,20 @@ from dry_pipe.pipeline import PipelineType
 
 class DPFoldPT(PipelineType):
 
-    def task_sort_key(self, state_file):
-        if state_file.task_key == "cf-download-pdbs":
-            return None
+    def task_sort_key(self, task_key):
+        if task_key == "cf-download-pdbs":
+            return "000"
+        elif task_key.startswith("cf-fold-array"):
+            return "010"
 
-        return state_file.task_key
+        return "020"
+
+    def array_grouper(self, task_key):
+
+        if task_key.startswith("cf-fold."):
+            return "cf-fold-array"
+
+        return None
 
 
 
