@@ -101,8 +101,6 @@ def generate_aggregate_report(__pipeline_instance_dir, interfaces_csv, summary_c
 
     concat_files_keep_first_header("*/contacts.csv", contacts_csv)
 
-    fold_outfile = Path(__pipeline_instance_dir, "output").glob("cf-fold.*/*")
-
     zip_root = Path(__pipeline_instance_dir, "output")
 
     excluded_files = [
@@ -111,10 +109,13 @@ def generate_aggregate_report(__pipeline_instance_dir, interfaces_csv, summary_c
     ]
 
     with zipfile.ZipFile(all_zip, "w", zipfile.ZIP_DEFLATED) as zipf:
+        fold_outfile = Path(__pipeline_instance_dir, "output").glob("cf-fold.*/*")
         for fof in fold_outfile:
             if fof.name.endswith(".done.txt") or fof.name in excluded_files:
+                print(f"will skip {fof}")
                 continue
             zipf.write(fof, arcname=fof.relative_to(zip_root))
+            print(f"added {fof} to zip")
 
 
         zipf.write(interfaces_csv, arcname="interfaces.csv")
