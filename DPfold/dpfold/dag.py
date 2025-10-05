@@ -174,7 +174,7 @@ def collabfold_dag(dsl, multimer_batch, samplesheet, collabfold_task_conf_func):
             ).outputs(
                 fa_out=dsl.file(f'fold.fa'),
                 a3m=dsl.file(f'0.a3m'),
-                all_results=dsl.file_set("**/*", exclude_pattern="*.pkl|*.pickle")
+                all_results=dsl.file_set("**/*", exclude_pattern="*.pkl|*.pickle|*fake_home*")
             ).calls(
                 generate_fasta_colabfold
             ).calls(
