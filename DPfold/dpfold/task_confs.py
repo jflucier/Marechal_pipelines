@@ -51,7 +51,7 @@ def cc_remote_task_conf_func_func(pipeline_instance_args):
         #TODO: make this work:
         #run_as_group=slurm_account
         run_as_group=None,
-        auto_restart_failed_regexen={
+        auto_restart_condition_regexp_per_log_file={
             "drypipe.log": [".*BrokenPipeError.*"],
             "out.log": [".*Bus\\ error.*", None]
         }
