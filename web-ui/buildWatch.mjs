@@ -3,7 +3,8 @@ import esbuild from "esbuild";
 
 
 const ctx = await esbuild.context({
-    ...conf
+    ...conf,
+    outfile: './build/bundle.js',
     //outfile: './bundle.js',
 })
 

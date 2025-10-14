@@ -51,3 +51,4 @@
     - "{{src}}/*.js"
     - "{{src}}/*.css"
     - "{{src}}/*.js.map"
+  notify: "restart web-gasket"

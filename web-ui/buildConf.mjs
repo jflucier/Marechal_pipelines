@@ -32,7 +32,6 @@ const aliasPlugin = {
 
 export const conf = {
     entryPoints: ['src/App.jsx'],
-    outfile: './build/bundle.js',
     //target: 'chrome58,firefox57,safari11',
     bundle: true,
     sourcemap: true,

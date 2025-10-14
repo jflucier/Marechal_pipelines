@@ -15,8 +15,6 @@
       vars:
         service_name: "web-gasket"
         log_dir: "{{wg_log_dir}}"
-        #service_exec_cmd: "/web-gasket_venv/bin/python3 /web-gasket/DPfold/dpfold/server.py"
-        service_exec_cmd: "/web-gasket_venv/bin/uvicorn dpfold.server:init_app --workers=4 --port 8000 --host 0.0.0.0"
         git_repo: "git@github.com:jflucier/Marechal_pipelines.git"
         branch: "{{git_branch}}"
         reqs: "/web-gasket/requirements-web-gasket.txt"
@@ -35,7 +33,7 @@
           - "DRYPIPE_DEBUG=True"
 
     - role: web_gasket
-      when: False
+      when: True
       vars:
         os_user: "web-gasket"
         work_dirs:
@@ -44,7 +42,7 @@
           - "{{wg_instances_dir}}/dp-fold"
 
     - role: javascript_spa
-      when: False
+      when: True
       vars:
         service_user: web-gasket
         src: "../web-ui/build"
@@ -52,44 +50,79 @@
         spa_dir: "../web-ui"
 
   handlers:
-    - name: restart dry-pipe-service
+    - name: restart drypipe
       ansible.builtin.systemd:
-        name: "dry-pipe-service"
+        name: "drypipe"
         daemon_reload: yes
+        enabled: true
         state: restarted
 
+    - name: restart web-gasket
+      ansible.builtin.systemd:
+        name: "web-gasket"
+        daemon_reload: yes
+        enabled: true
+        state: restarted
 
   tasks:
-    - ansible.builtin.copy:
+    - name: upload cc_allocs.json
+      ansible.builtin.copy:
         dest: "/home/web-gasket/cc_allocs.json"
         src: "cc_allocs.json"
         owner: "web-gasket"
         group: "web-gasket"
         mode: u=rw,g=r,o=r
 
-    - ansible.builtin.copy:
-        dest: "/etc/systemd/system/dry-pipe-service.service"
+    - name: "create drypipe service file"
+      ansible.builtin.copy:
+        dest: "/etc/systemd/system/drypipe.service"
         content: |
                  [Unit]
-                 After=network.target
+                 After=network.target 
           
                  [Service]
-                 TimeoutStopSec=1             
+                 TimeoutStopSec=2
+                 LimitNOFILE=2072576
                  User=web-gasket
                  Group=web-gasket
                  WorkingDirectory=/home/web-gasket
                  EnvironmentFile=/home/web-gasket/env
                  
-                 ExecStart=/web-gasket_venv/bin/python3 /web-gasket/DryPipe/dry_pipe/cli.py service --config-generator=dpfold.pipeline_conf:gen_conf --log-conf=/home/web-gasket/active-dry-pipe-log-conf.json
-                 #StandardOutput=file:{{wg_log_dir}}/dp-out-err.log
-                 #StandardError=file:{{wg_log_dir}}/dp-out-err.log
+                 ExecStart=/web-gasket_venv/bin/python3 /web-gasket/DryPipe/dry_pipe/cli.py service --config-generator=dpfold.pipeline_conf:gen_conf --log-conf=/home/web-gasket/active-drypipe-log-conf.json 
           
                  [Install]
                  WantedBy=multi-user.target
-      notify: "restart dry-pipe-service"
+      notify: "restart drypipe"
+
+    - name: "create web-gasket service file"
+      ansible.builtin.copy:
+        dest: "/etc/systemd/system/web-gasket.service"
+        content: |
+                 [Unit]
+                 After=network.target
+          
+                 [Service]
+                 TimeoutStopSec=1
+                 LimitNOFILE=2048
+                 User=web-gasket
+                 Group=web-gasket
+                 WorkingDirectory=/home/web-gasket
+                 EnvironmentFile=/home/web-gasket/env
+                 AmbientCapabilities=CAP_NET_BIND_SERVICE
+                 
+                 ExecStart=/web-gasket_venv/bin/uvicorn dpfold.server:init_app --workers=4 --port=80 --host=0.0.0.0
+          
+                 # Danger: for debugging only: the logs will be owned by root, must be deleted manually removed
+                 # StandardOutput=file:/var/log/out-err.log
+                 # StandardError=file:/var/log/out-err.log
+          
+                 [Install]
+                 WantedBy=multi-user.target
+      notify: "restart web-gasket"
+
 
     - ansible.builtin.copy:
-        dest: "/home/web-gasket/dry-pipe-log-conf.json"
+        dest: "/home/web-gasket/drypipe-log-conf.json"
         content: |
           {
             "version": 1,
@@ -102,7 +135,7 @@
               "logfile": {
                   "class": "logging.handlers.RotatingFileHandler",
                   "formatter": "simple",
-                  "filename": "{{wg_log_dir}}/dry-pipe-service.log",
+                  "filename": "{{wg_log_dir}}/drypipe-service.log",
                   "maxBytes": 10485760,
                   "backupCount": 3
               }
@@ -118,10 +151,10 @@
             }
           }
 
-    - name: create a symbolic link to dry-pipe-log-conf.json
+    - name: create a symbolic link to drypipe-log-conf.json
       ansible.builtin.file:
-        src: /home/web-gasket/dry-pipe-log-conf.json
-        dest: /home/web-gasket/active-dry-pipe-log-conf.json
+        src: /home/web-gasket/drypipe-log-conf.json
+        dest: /home/web-gasket/active-drypipe-log-conf.json
         owner: web-gasket
         group: web-gasket
         state: link

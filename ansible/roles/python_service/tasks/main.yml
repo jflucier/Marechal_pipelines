@@ -16,29 +16,6 @@
           {% endfor %}
     dest: "/home/{{service_name}}/env.sh"
 
-- ansible.builtin.copy:
-    dest: "/etc/systemd/system/{{service_name}}.service"
-    content: |
-             [Unit]
-             After=network.target
-      
-             [Service]
-             TimeoutStopSec=1
-             LimitNOFILE=2048
-             User={{service_name}}
-             Group={{service_name}}
-             WorkingDirectory=/home/{{service_name}}
-             EnvironmentFile=/home/{{service_name}}/env
-             
-             ExecStart={{service_exec_cmd}}
-             StandardOutput=file:{{log_dir}}/out-err.log
-             StandardError=file:{{log_dir}}/out-err.log
-      
-             [Install]
-             WantedBy=multi-user.target
-  notify: "restart {{service_name}}"
-
-
 - name: ensure group {{service_name}} exists
   become: yes
   group:

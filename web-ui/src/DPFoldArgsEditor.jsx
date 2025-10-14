@@ -312,7 +312,7 @@ const DPFoldArgsEditor = ({pipelineInstance, pipelineArgsDispatcher}) => {
                             return saveArgs().then(() => true)
                         }}
                         onReceiveStartResponse={res => {
-                            console.log(res)
+                            console.log(res, 0)
                         }}
                     />
                 </div>

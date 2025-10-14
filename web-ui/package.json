@@ -1,8 +1,10 @@
 {
   "scripts": {
-    "build": "node build.mjs",
-    "dev": "node buildWatch.mjs",
-    "tailwindcss-watch": "node_modules/.bin/tailwindcss -i ./src/input.css -o ./build/style.css --watch"
+    "build": "node build.mjs && node_modules/.bin/tailwindcss -i ./src/input.css -o ./build/style.css",
+    "buildWatch": "node buildWatch.mjs",
+    "tailWatch": "node_modules/.bin/tailwindcss -i ./src/input.css -o ./build/style.css --watch",
+    "tailwindcss-watch": "node_modules/.bin/tailwindcss -i ./src/input.css -o ./build/style.css --watch",
+    "dev": "concurrently --kill-others \"npm run buildWatch\" \"npm run tailwindcss-watch\""
   },
   "devDependencies": {
     "esbuild": "file:../WebGasket/node_modules/esbuild",
