@@ -151,7 +151,7 @@ def init_app():
 
     Path(WEB_GASKET_TEMP_FILE_UPLOAD_DIR).mkdir(exist_ok=True, parents=True)
 
-    pipeline_runner = PipelineRunner(gen_conf())
+    pipeline_runner = PipelineRunner(gen_conf(), sleep_schedule=[])
 
     api = create_sub_api(pipeline_runner)
 
@@ -219,10 +219,8 @@ def init_app():
         <!doctype html>
         <html>
             <head>
-                <meta charset="utf-8">        
-                <link href="https://cdn.jsdelivr.net/npm/flowbite@2.5.2/dist/flowbite.min.css" rel="stylesheet" />
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <script src="https://cdn.tailwindcss.com"></script>
+                <meta charset="utf-8">                        
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">                
                 <link rel="stylesheet" href="/style.css">
                 {head}
             </head>

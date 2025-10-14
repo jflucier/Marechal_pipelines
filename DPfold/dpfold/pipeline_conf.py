@@ -24,6 +24,8 @@ class DPFoldPT(PipelineType):
 
         return None
 
+    def doc_root(self):
+        return Path(__file__).parent
 
 
 def gen_conf():

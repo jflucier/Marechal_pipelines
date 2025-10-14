@@ -3,87 +3,11 @@ import React, {useReducer, useEffect} from 'react'
 import {useApi} from "@web-gasket/ApiSession.jsx";
 import {DefaultButton} from "@web-gasket/widgets/Buttons.jsx"
 import FileManager from "@web-gasket/components/FileManager.jsx";
+import DocLink from "@web-gasket/components/DocLink.jsx";
 import ModalWindow from "@web-gasket/widgets/ModalWindow.jsx";
 import PipelineInstanceStartButton from "@web-gasket/components/PipelineInstanceStartButton.jsx"
 import PipelineInstancePreRunButton from "@web-gasket/components/PipelineInstancePreRunButton.jsx"
-
-const dpFoldArgsReducer = (state, action) => {
-
-    switch (action.name) {
-        case "init": {
-            return {
-                args: {
-                    cc_cluster: action.args.cc_cluster,
-                    cc_allocation: action.args.cc_allocation,
-                    cc_project: action.args.cc_project
-                },
-                customFilesStatus: null,
-                isDirty: false,
-                fileManagerVisible: false,
-                c: 0
-            }
-        }
-        case "setCCallocations": {
-            return {
-                ...state,
-                ccAllocations: action.allocations
-            }
-        }
-        case "updateCustomFileStatus": {
-
-            return {
-                ...state,
-                customFilesStatus: {
-                    ...action.status
-                }
-            }
-        }
-        case "update": {
-
-            const nextState = {
-                ...state,
-                args: {
-                    ...state.args,
-                    [action.fieldName]: action.value
-                }
-            }
-
-            return {
-                ...nextState,
-                isDirty: true,
-                c: state.c + 1
-            }
-        }
-        case "preRunResults": {
-            return {
-                ...state,
-                isPrepared: action.res.status === "ok"
-            }
-        }
-        case "saved": {
-            return {
-                ...state,
-                isDirty: false
-            }
-        }
-        case "popFileManager": {
-            return {
-                ...state,
-                fileManagerVisible: true
-            }
-        }
-        case "closeFileManager": {
-            return {
-                ...state,
-                fileManagerVisible: false,
-                c: state.c + 1
-            }
-        }
-        default:
-            throw Error(`unknown action ${action.name}`)
-    }
-}
-
+import  {dpFoldArgsReducer} from "./dpFoldArgsReducer.js"
 
 
 const ClusterSelect = ({value, onSelect, clusters}) => {
@@ -156,6 +80,17 @@ const DPFoldArgsEditor = ({pipelineInstance, pipelineArgsDispatcher}) => {
         })
     },[])
 
+    useEffect(() => {
+
+        latestPipelineInstance()
+
+    },[])
+
+
+    const latestPipelineInstance = () =>
+        api.latestPipelineInstance(pipelineInstance.pid).then(res => {
+            dpFoldArgsDispatcher({name: "refreshTaskStates", tasks: res.tasks})
+        })
 
     const readyStatus = () => {
 
@@ -194,7 +129,6 @@ const DPFoldArgsEditor = ({pipelineInstance, pipelineArgsDispatcher}) => {
 
         const s = readyStatus()
 
-        console.log(s)
         return s > 0
     }
 
@@ -305,7 +239,10 @@ const DPFoldArgsEditor = ({pipelineInstance, pipelineArgsDispatcher}) => {
 
 
     return <div className="grid gap-6 mb-6 md:grid-cols-1">
-        {fileManagerModal()}
+            <div>
+                <DocLink pipelineType={'DPFold'} markdownFile={'doc.samplesheet.md'}/>
+            </div>
+            {fileManagerModal()}
             <div>
                 <ClusterSelect
                     value={dpFoldArgsView.args.cc_cluster}
@@ -379,9 +316,6 @@ const DPFoldArgsEditor = ({pipelineInstance, pipelineArgsDispatcher}) => {
                         }}
                     />
                 </div>
-            </div>
-            <div>
-                zazdf
             </div>
         </div>
 }

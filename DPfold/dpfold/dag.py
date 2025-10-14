@@ -114,6 +114,11 @@ def generate_aggregate_report(__pipeline_instance_dir, interfaces_csv, summary_c
             if fof.name.endswith(".done.txt") or fof.name in excluded_files:
                 print(f"will skip {fof}")
                 continue
+
+            if not fof.exists():
+            # rsync sometimes downloads symlinks
+                continue
+
             zipf.write(fof, arcname=fof.relative_to(zip_root))
             print(f"added {fof} to zip")
 
@@ -125,6 +130,8 @@ def generate_aggregate_report(__pipeline_instance_dir, interfaces_csv, summary_c
 
 
 def collabfold_dag(dsl, multimer_batch, samplesheet, collabfold_task_conf_func):
+
+    pipeline_instance_dir_basename = os.path.basename(dsl.pipeline_instance_dir())
 
     tc = collabfold_task_conf_func([])
 
@@ -261,58 +268,28 @@ def collabfold_dag(dsl, multimer_batch, samplesheet, collabfold_task_conf_func):
             yield colabfold_search_task
 
         for match in dsl.query_all_or_nothing("cf-fold.*", state="ready"):
-            yield dsl.task(
+            cf_fold_array = dsl.task(
                 key="cf-fold-array",
-                task_conf=collabfold_task_conf_func(colabfold_search_slurm_options)
+                task_conf=collabfold_task_conf_func(colabfold_search_slurm_options),
+                downstream_resets=["cf-aggregate-report"]
             ).slurm_array_parent(
                 children_tasks=match.tasks
             )()
 
+            yield cf_fold_array
 
-def aggregate_report_task(dsl):
+            if cf_fold_array.has_ended():
 
-    pipeline_instance_dir_basename = os.path.basename(dsl.pipeline_instance_dir())
-
-    yield dsl.task(
-        key=f"of-aggregate-report"
-    ).outputs(
-        interfaces_csv=dsl.file(f"{pipeline_instance_dir_basename}.interfaces.csv"),
-        summary_csv=dsl.file(f"{pipeline_instance_dir_basename}.summary.csv"),
-        contacts_csv=dsl.file(f"{pipeline_instance_dir_basename}.contacts.csv"),
-        all_zip=dsl.file(f"{pipeline_instance_dir_basename}.all.zip"),
-    ).calls(
-        generate_aggregate_report
-    )()
-
-
-def combined_pipeline_dag(dsl, openfold_task_conf_func, collabfold_task_conf_func):
-    from dpfold.openfold_dag import openfold_dag
-
-    samplesheet = os.path.join(dsl.pipeline_instance_dir(), "samplesheet.tsv")
-
-    multimers = parse_multimer_list_from_samplesheet(samplesheet)
-
-    def is_long_sequence(multimer):
-        return multimer.sequence_length() > 2700
-
-    long_multimers = [
-        m for m in multimers if is_long_sequence(m)
-    ]
-
-    short_multimers = [
-        m for m in multimers if not is_long_sequence(m)
-    ]
-
-    yield from collabfold_dag(dsl, short_multimers, samplesheet, collabfold_task_conf_func)
-
-    yield from openfold_dag(dsl, long_multimers, samplesheet, openfold_task_conf_func)
-
-    for match_completed_openfold_tasks in dsl.query_all_or_nothing("analysis-openfold.*"):
-        for match_completed_collabfold_tasks in dsl.query_all_or_nothing("colabfold_batch.*"):
-            yield from aggregate_report_task(dsl)
-
-
-
+                yield dsl.task(
+                    key="cf-aggregate-report"
+                ).outputs(
+                    interfaces_csv=dsl.file(f"{pipeline_instance_dir_basename}.interfaces.csv"),
+                    summary_csv=dsl.file(f"{pipeline_instance_dir_basename}.summary.csv"),
+                    contacts_csv=dsl.file(f"{pipeline_instance_dir_basename}.contacts.csv"),
+                    all_zip=dsl.file(f"{pipeline_instance_dir_basename}.all.zip"),
+                ).calls(
+                    generate_aggregate_report
+                )()
 
 
 def colabfold_pipeline():
@@ -327,34 +304,5 @@ def colabfold_pipeline():
 
         yield from collabfold_dag(dsl, multimers, samplesheet, tc)
 
-        for _ in dsl.query_all_or_nothing("cf-fold.*"):
-            yield from aggregate_report_task(dsl)
-
     return DryPipe.create_pipeline(p)
 
-
-def openfold_pipeline():
-
-    from dpfold.task_confs import gh_task_conf
-    from dpfold.openfold_dag import openfold_dag
-
-    def p(dsl):
-        samplesheet = os.path.join(dsl.pipeline_instance_dir(), "samplesheet.tsv")
-
-        multimers = parse_multimer_list_from_samplesheet(samplesheet)
-
-        yield from openfold_dag(dsl, multimers, samplesheet, gh_task_conf)
-
-        for _ in dsl.query_all_or_nothing("of-fold.*"):
-            yield from aggregate_report_task(dsl)
-
-    return DryPipe.create_pipeline(p)
-
-
-def combined_pipeline():
-
-    from dpfold.task_confs import gh_task_conf, narval_task_conf
-
-    return DryPipe.create_pipeline(
-        lambda dsl: combined_pipeline_dag(dsl, gh_task_conf, narval_task_conf)
-    )

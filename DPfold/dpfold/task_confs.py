@@ -39,7 +39,7 @@ def cc_remote_task_conf_func_func(pipeline_instance_args):
         sbatch_options=sbatch_options,
         extra_env={
             "MUGQIC_INSTALL_HOME": "/cvmfs/soft.mugqic/CentOS6",
-            "DRYPIPE_TASK_DEBUG": "True",
+            #"DRYPIPE_TASK_DEBUG": "True",
             "PYTHONPATH": f"$__pipeline_instance_dir/external-file-deps{this_python_root}",
             "TASK_VENV": task_venv,
             "remote_base_dir": remote_base_dir,
@@ -50,7 +50,11 @@ def cc_remote_task_conf_func_func(pipeline_instance_args):
         python_bin=f"{task_venv}/bin/python3",
         #TODO: make this work:
         #run_as_group=slurm_account
-        run_as_group=None
+        run_as_group=None,
+        auto_restart_failed_regexen={
+            "drypipe.log": [".*BrokenPipeError.*"],
+            "out.log": [".*Bus\\ error.*", None]
+        }
     )
 
 

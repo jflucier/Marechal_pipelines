@@ -5,10 +5,9 @@
     "tailwindcss-watch": "node_modules/.bin/tailwindcss -i ./src/input.css -o ./build/style.css --watch"
   },
   "devDependencies": {
-    "@asn.aeb/esbuild-css-modules-plugin": "^0.1.9",
-    "concurrently": "^9.1.2",
-    "esbuild": "0.24.0",
-    "tailwindcss": "^3.4.14"
+    "esbuild": "file:../WebGasket/node_modules/esbuild",
+    "@asn.aeb/esbuild-css-modules-plugin": "file:../WebGasket/node_modules/@asn.aeb/esbuild-css-modules-plugin",
+    "tailwindcss": "file:../WebGasket/node_modules/tailwindcss"
   },
   "dependencies": {
     "react": "file:../WebGasket/node_modules/react",
