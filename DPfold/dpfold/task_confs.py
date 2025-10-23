@@ -53,7 +53,11 @@ def cc_remote_task_conf_func_func(pipeline_instance_args):
         run_as_group=None,
         auto_restart_condition_regexp_per_log_file={
             "drypipe.log": [".*BrokenPipeError.*"],
-            "out.log": [".*Bus\\ error.*", None]
+            "out.log": [
+                ".*Bus\\ error.*",
+                ".*CUDA_ERROR_.*",
+                None
+            ]
         }
     )
 
