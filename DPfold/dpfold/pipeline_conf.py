@@ -55,9 +55,9 @@ def gen_conf():
     }
 
     def dpfold_completion_func(pipeline_instance_dir):
-        zipz = list(Path(pipeline_instance_dir, "output", "of-aggregate-report").glob("*.zip"))
+        zipz = list(Path(pipeline_instance_dir, "output", "cf-aggregate-report").glob("*.zip"))
         if len(zipz) > 0:
-            csvs = Path(pipeline_instance_dir, "output", "of-aggregate-report").glob("*.csv")
+            csvs = Path(pipeline_instance_dir, "output", "cf-aggregate-report").glob("*.csv")
             yield True, list(csvs) + zipz
         else:
             yield False, []
