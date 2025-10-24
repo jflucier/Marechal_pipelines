@@ -4,8 +4,8 @@ import ReactDOM from "react-dom/client"
 import {routes} from "@web-gasket/routes.jsx"
 import {PipelineInstanceCustomEditorProvider} from "@web-gasket/PipelineInstanceCustomEditorProvider.jsx"
 import {createBrowserRouter, RouterProvider} from "react-router-dom"
-import DPFoldArgsEditor from "./DPFoldArgsEditor";
-import * as thisApi from "./rest";
+import DPFoldArgsEditor from "./DPFoldArgsEditor"
+import * as thisApi from "./rest"
 import * as allApi from "@web-gasket/rest.js"
 
 

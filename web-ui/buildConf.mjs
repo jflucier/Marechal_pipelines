@@ -1,6 +1,7 @@
 
 import path from 'path'
-import {cssModulesPlugin} from "@asn.aeb/esbuild-css-modules-plugin"
+import tailwindPlugin from 'esbuild-plugin-tailwindcss'
+import manifestPlugin from 'esbuild-plugin-manifest'
 
 function removeLastDir(pathStr) {
     // Remove trailing slash if present
@@ -31,16 +32,16 @@ const aliasPlugin = {
 }
 
 export const conf = {
-    entryPoints: ['src/App.jsx'],
+    entryPoints: ['src/App.jsx', 'src/style.css'],
     //target: 'chrome58,firefox57,safari11',
     bundle: true,
     sourcemap: true,
+    outdir: './build',
     plugins: [
-        aliasPlugin, cssModulesPlugin({
-        // Optional. Will emit a `.css` bundle containing all of the imported css.
-        emitCssBundle: {
-            // Required. Will append `.css` at the end if missing
-            filename: './build/bundle'
-        }
-    })]
+        aliasPlugin,
+        tailwindPlugin(),
+        manifestPlugin({
+            shortNames: true
+        })
+    ]
 }

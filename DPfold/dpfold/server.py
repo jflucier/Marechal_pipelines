@@ -200,37 +200,11 @@ def init_app():
             "exists": False
         }
 
-    #@api.get("/dpFoldsStatus/{pid:path}")
-    #async def dp_folds_status(pid: str):
-
-    #    state_files = Path(f"/{pid}", ".drypipe", "samplesheet.tsv")
-
 
     user_auth_db = os.environ.get("USER_AUTH_DB")
 
     if user_auth_db is None:
         raise Exception(f"missing env var USER_AUTH_DB")
-
-    web_artifacts_dir = Path(Path(__file__).parent.parent.parent, "web-ui", "build")
-
-    def page_func(head="", bundle_js=None):
-
-        return f"""
-        <!doctype html>
-        <html>
-            <head>
-                <meta charset="utf-8">                        
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">                
-                <link rel="stylesheet" href="/style.css">
-                {head}
-            </head>
-            <body>
-                <div id="app"/>                
-                <script type="module" src="/{bundle_js}" bundle></script>
-            </body>
-        </html>
-        """
-
 
     session_key = os.environ.get("WEB_SESSION_KEY")
 
@@ -243,9 +217,9 @@ def init_app():
         60*30
     )
 
-    authenticator.init_routes(api, app, page_func, web_artifacts_dir)
+    authenticator.init_routes(api, app)
 
-    init_page_and_upload_routes(app, authenticator, page_func, web_artifacts_dir)
+    init_page_and_upload_routes(app, authenticator)
 
     app.mount("/api", api)
 

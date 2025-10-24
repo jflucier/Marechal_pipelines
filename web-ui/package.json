@@ -1,14 +1,12 @@
 {
   "scripts": {
-    "build": "node build.mjs && node_modules/.bin/tailwindcss -i ./src/input.css -o ./build/style.css",
-    "buildWatch": "node buildWatch.mjs",
-    "tailWatch": "node_modules/.bin/tailwindcss -i ./src/input.css -o ./build/style.css --watch",
-    "tailwindcss-watch": "node_modules/.bin/tailwindcss -i ./src/input.css -o ./build/style.css --watch",
-    "dev": "concurrently --kill-others \"npm run buildWatch\" \"npm run tailwindcss-watch\""
+    "build": "node build.mjs",
+    "buildWatch": "node buildWatch.mjs"
   },
   "devDependencies": {
     "esbuild": "file:../WebGasket/node_modules/esbuild",
-    "@asn.aeb/esbuild-css-modules-plugin": "file:../WebGasket/node_modules/@asn.aeb/esbuild-css-modules-plugin",
+    "esbuild-plugin-manifest": "^1.0.5",
+    "esbuild-plugin-tailwindcss": "^1.2.3",
     "tailwindcss": "file:../WebGasket/node_modules/tailwindcss"
   },
   "dependencies": {
