@@ -8,4 +8,6 @@ tailwindConf.content = [
       "../WebGasket/js/widgets/*.jsx"
 ]
 
+tailwindConf.darkMode = 'class'
+
 module.exports = tailwindConf
