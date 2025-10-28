@@ -48,9 +48,9 @@ class DPFoldPipelineType(PipelineType):
         zipz = list(Path(pipeline_instance_dir, "output", "cf-aggregate-report").glob("*.zip"))
         if len(zipz) > 0:
             csvs = Path(pipeline_instance_dir, "output", "cf-aggregate-report").glob("*.csv")
-            yield True, list(csvs) + zipz
+            yield list(csvs) + zipz
         else:
-            yield False, []
+            yield []
 
     def pre_run_filters(self):
         return ["cf-download-pdbs"]
