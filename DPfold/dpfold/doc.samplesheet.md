@@ -3,7 +3,7 @@
 
 this is a short overview of the Colabfold pipeline
 
-The format of the samplesheet is as follows:
+The samplesheet must be named samplesheet.tsv, format is as follows:
 
 | protein1\_name | protein1\_nbr | protein1\_PDB | protein1\_seq | protein2\_name | protein2\_nbr | protein2\_PDB | protein2\_seq | Comment (not part of the format)                                                                                                                                                                                     |
 | :---- | ----- | :---- | :---- | :---- | ----- | :---- | :---- |:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
