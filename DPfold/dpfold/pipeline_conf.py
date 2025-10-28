@@ -32,7 +32,7 @@ class DPFoldPipelineType(PipelineType):
 
     def pipeline(self):
         pipeline_code_dir = str(Path(__file__).parent.parent)
-        return colabfold_pipeline(),
+        return colabfold_pipeline()
 
     def validate_before_run(self, pipeline_instance_dir):
         errors, samplesheet, multimers, _ = parse_and_validate_input_files(pipeline_instance_dir)
