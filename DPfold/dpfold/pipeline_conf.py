@@ -7,7 +7,7 @@ from dpfold.dag import colabfold_pipeline, parse_and_validate_input_files
 from dry_pipe.pipeline import PipelineType
 
 
-class DPFoldPT(PipelineType):
+class DPFoldPipelineType(PipelineType):
 
     def task_sort_key(self, task_key):
         if task_key == "cf-download-pdbs":
@@ -27,6 +27,30 @@ class DPFoldPT(PipelineType):
     def doc_root(self):
         return Path(__file__).parent
 
+    def name(self):
+        return "DPFold"
+
+    def pipeline(self):
+        pipeline_code_dir = str(Path(__file__).parent.parent)
+        return colabfold_pipeline(),
+
+    def validate_before_run(self, pipeline_instance_dir):
+        errors, samplesheet, multimers, _ = parse_and_validate_input_files(pipeline_instance_dir)
+        return errors, None
+
+    def default_args(self):
+        return {}
+
+    def on_complete(self, pipeline_instance_dir):
+        zipz = list(Path(pipeline_instance_dir, "output", "cf-aggregate-report").glob("*.zip"))
+        if len(zipz) > 0:
+            csvs = Path(pipeline_instance_dir, "output", "cf-aggregate-report").glob("*.csv")
+            yield True, list(csvs) + zipz
+        else:
+            yield False, []
+
+    def pre_run_filters(self):
+        return ["cf-download-pdbs"]
 
 def gen_conf():
 
@@ -40,40 +64,9 @@ def gen_conf():
 
         return str(v)
 
-
     pipeline_run_site = read_dir_from_env_var("PIPELINE_INSTANCES_DIR")
-    pipeline_code_dir = str(Path(__file__).parent.parent)
     dp_fold_instances_dir = str(Path(pipeline_run_site, "dp-fold"))
     Path(dp_fold_instances_dir).mkdir(exist_ok=True)
 
-    common_schemas = {
-        "schema": {
-            "cc_cluster": ['enum', 'narval'],
-            "cc_project": "string",
-            "cc_allocation": "string"
-        }
-    }
 
-    def dpfold_completion_func(pipeline_instance_dir):
-        zipz = list(Path(pipeline_instance_dir, "output", "cf-aggregate-report").glob("*.zip"))
-        if len(zipz) > 0:
-            csvs = Path(pipeline_instance_dir, "output", "cf-aggregate-report").glob("*.csv")
-            yield True, list(csvs) + zipz
-        else:
-            yield False, []
-
-    def validate_dp_fold(pipeline_instance_dir):
-        errors, samplesheet, multimers, _ = parse_and_validate_input_files(pipeline_instance_dir)
-
-        return errors, None
-
-    yield dp_fold_instances_dir, \
-           DPFoldPT(
-               "DPFold",
-                pipeline=colabfold_pipeline(),
-                validator=validate_dp_fold,
-                spartan_schema=None,
-                default_args={},
-                complete_func=dpfold_completion_func,
-                pre_run_filters=["cf-download-pdbs"]
-           )
+    yield dp_fold_instances_dir, DPFoldPipelineType()
