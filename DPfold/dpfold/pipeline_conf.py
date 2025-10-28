@@ -41,6 +41,12 @@ class DPFoldPipelineType(PipelineType):
     def default_args(self):
         return {}
 
+    def is_complete(self):
+        return None
+
+    def result_files(self):
+        return []
+
     def on_complete(self, pipeline_instance_dir):
         zipz = list(Path(pipeline_instance_dir, "output", "cf-aggregate-report").glob("*.zip"))
         if len(zipz) > 0:
