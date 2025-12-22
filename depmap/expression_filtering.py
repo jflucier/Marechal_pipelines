@@ -5,11 +5,24 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 
 
 def find_full_column_name(short_name, columns):
-    """Matches a gene symbol to its DepMap column."""
+    """
+    Matches a gene symbol (e.g., 'BRCA1') to various DepMap column formats
+    (e.g., 'BRCA1 (672)' or 'BRCA1 (ENSG...)').
+    """
     if short_name in columns:
         return short_name
-    matches = [c for c in columns if c.startswith(f"{short_name} (")]
-    return matches[0] if matches else None
+
+    # Try finding symbol + Entrez ID (91607) format
+    matches_entrez = [c for c in columns if c.startswith(f"{short_name} (") and not '(ENSG' in c]
+    if matches_entrez:
+        return matches_entrez[0]
+
+    # Try finding symbol + Ensembl ID (ENSG...) format
+    matches_ensg = [c for c in columns if c.startswith(f"{short_name} (ENSG")]
+    if matches_ensg:
+        return matches_ensg[0]
+
+    return None
 
 
 def process_single_gene(ddr_gene, crispr_df, subsets):
@@ -38,8 +51,8 @@ def process_single_gene(ddr_gene, crispr_df, subsets):
 def main():
     parser = argparse.ArgumentParser(description='Parallelized CRISPR correlation by expression quartiles.')
     parser.add_argument('-i', '--input', required=True, help='Input expression CSV')
-    parser.add_argument('-o', '--output', required=True, help='Output path for expression quartile file')
-    parser.add_argument('-g', '--refgene', default='SLFN11 (91607)', help='Reference gene column')
+    parser.add_argument('-o', '--output', required=True, help='Output prefix for files (e.g., correlation/24Q4)')
+    parser.add_argument('-g', '--refgene', default='SLFN11', help='Reference gene symbol or name (e.g. SLFN11 (91607))')
     parser.add_argument('-ddr', '--ddrgenes', required=True, help='DDR gene list text file')
     parser.add_argument('-c', '--crispr_input', required=True, help='CRISPR score CSV')
     parser.add_argument('-t', '--threads', type=int, default=4, help='Number of worker processes')
@@ -47,56 +60,58 @@ def main():
 
     try:
         # 1. Flexible Header Detection for Expression File
-        # Read only the first row to check column names
         header_check = pd.read_csv(args.input, nrows=0)
-        all_cols = header_check.columns.tolist()
-
-        # The first column is usually the ID (ModelID or ProfileID)
-        id_col_name = all_cols[0]
+        all_expr_cols = header_check.columns.tolist()
+        id_col_name = all_expr_cols[0]  # Assume the very first column is the ID
 
         # Verify the reference gene exists
-        if args.refgene not in all_cols:
-            # Try to find it if it was passed as a symbol
-            found_gene = find_full_column_name(args.refgene.split(' ')[0], all_cols)
-            if found_gene:
-                args.refgene = found_gene
-            else:
-                raise KeyError(f"Gene '{args.refgene}' not found in expression file.")
+        ref_gene_name = find_full_column_name(args.refgene.split(' ')[0], all_expr_cols)
+        if not ref_gene_name:
+            raise KeyError(f"Reference gene '{args.refgene}' not found in expression file headers.")
 
-        print(f"--- Categorizing expression for {args.refgene} (ID col: {id_col_name}) ---")
+        print(f"--- Categorizing expression for {ref_gene_name} (ID col: {id_col_name}) ---")
 
         # Load data using identified column names
-        expr_df = pd.read_csv(args.input, usecols=[id_col_name, args.refgene])
+        expr_df = pd.read_csv(args.input, usecols=[id_col_name, ref_gene_name])
+        expr_df = expr_df.rename(columns={id_col_name: 'ModelID', ref_gene_name: 'expression_val'})
 
-        # Standardize ID column name to ModelID for internal logic
-        expr_df = expr_df.rename(columns={id_col_name: 'ModelID'})
+        expr_df['quartile'] = pd.qcut(expr_df['expression_val'], q=4, labels=['low', 'low-mid', 'high-mid', 'high'])
 
-        expr_df['quartile'] = pd.qcut(expr_df[args.refgene], q=4, labels=['low', 'low-mid', 'high-mid', 'high'])
-
-        output_fn = f"{args.output}.expression.tsv"
-        expr_df.rename(columns={'ModelID': 'model id', args.refgene: 'expression'}).to_csv(output_fn, index=False,
-                                                                                           sep='\t')
+        output_fn_expr = f"{args.output}.expression.tsv"
+        expr_df.rename(columns={'ModelID': 'model id', 'expression_val': 'expression'}).to_csv(output_fn_expr,
+                                                                                               index=False, sep='\t')
 
         # 2. Load CRISPR Data
         print("Loading CRISPR data...")
         crispr_df = pd.read_csv(args.crispr_input, index_col=0)
+        all_crispr_cols = crispr_df.columns.tolist()
 
-        # 3. Match DDR Genes
+        # 3. Load and Match DDR Genes
         with open(args.ddrgenes, 'r') as f:
-            raw_list = [line.strip() for line in f if line.strip()]
+            raw_list = [line.strip().split(' ')[0] for line in f if line.strip()]  # Extract just the symbol
 
-        ddr_list = [find_full_column_name(g, crispr_df.columns) for g in raw_list]
-        ddr_list = [g for g in ddr_list if g is not None]
+        ddr_list = []
+        for g_symbol in raw_list:
+            full_name = find_full_column_name(g_symbol, all_crispr_cols)
+            if full_name:
+                ddr_list.append(full_name)
+            else:
+                print(f"  Warning: Gene '{g_symbol}' not found in CRISPR columns.")
+
         total_genes = len(ddr_list)
+        if total_genes == 0:
+            print("Error: No valid DDR genes found in the CRISPR dataset.")
+            sys.exit(1)
 
-        # 4. Define Subsets
+        # ... (Steps 4, 5, 6 remain the same as previous script) ...
+        # Define Subsets
         subsets = {
             "all": expr_df['ModelID'].tolist(),
             "low": expr_df[expr_df['quartile'] == 'low']['ModelID'].tolist(),
             "high": expr_df[expr_df['quartile'] == 'high']['ModelID'].tolist()
         }
 
-        # 5. Parallel Processing
+        # Parallel Processing
         results_accum = {"all": [], "low": [], "high": []}
         print(f"Starting parallel processing with {args.threads} workers for {total_genes} genes...")
 
@@ -111,12 +126,13 @@ def main():
                     if gene_results[key] is not None:
                         results_accum[key].append(gene_results[key])
 
-        # 6. Save Final Files
+        # Save Final Files
         for key in results_accum:
             if results_accum[key]:
                 output_fn = f"{args.output}.spearman.{key}.tsv"
                 pd.concat(results_accum[key]).to_csv(output_fn, sep='\t', index=False)
                 print(f"Final file saved: {output_fn}")
+
 
     except Exception as e:
         print(f"Error: {e}")
