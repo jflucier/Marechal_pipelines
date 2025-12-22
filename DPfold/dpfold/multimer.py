@@ -1,7 +1,8 @@
 import os
+from io import StringIO
 from itertools import islice, groupby
 from dataclasses import dataclass
-from typing import List
+from pathlib import Path
 
 
 @dataclass
@@ -18,14 +19,34 @@ class Multimer:
         self.proteins = proteins
         self.line_number_in_samplesheet = line_number_in_samplesheet
 
+
+    def has_pdbs(self):
+        return len(list(self.all_pdbs())) > 0
+
     def protein_count(self):
         return len(self.proteins)
 
     def multimer_name(self):
+        def s(protein):
+            pdb_name = self.pdb_names()
+            if pdb_name == "":
+                return f"{protein.name}_{protein.n_occurences}"
+            else:
+                return f"{protein.name}_{protein.n_occurences}_{pdb_name}"
+
         return "-".join([
-            f"{protein.name}_{protein.n_occurences}"
+            s(protein)
             for protein in self.proteins
         ])
+
+    def fold_name(self):
+        names = []
+        for protein in self.proteins:
+            for x in range(1, protein.n_occurences + 1):
+                names.extend([f"{protein.name}_{x}"])
+        return "-".join(names)
+
+
 
     def __str__(self):
         return self.multimer_name()
@@ -78,41 +99,77 @@ class Multimer:
             ))
 
 
-    def generate_pdb(self, output_dir):
+    def pdb_names(self):
+        def g():
+            for p in self.proteins:
+                if p.pdb is not None and p.pdb != "":
+                    for pdb in p.pdb.split(","):
+                        yield pdb
 
-        import requests
+        return "_".join(g())
 
-        pdb_dir = os.path.join(output_dir, "pdb")
-        if not os.path.exists(pdb_dir):
-            os.makedirs(pdb_dir)
-
+    def all_pdbs(self):
         for protein in self.proteins:
             pdb_list = protein.pdb.split(",")
             for pdb in pdb_list:
-                # download pdb if pdb id is provided
-                pdb_out = os.path.join(pdb_dir, f"{pdb.lower()}.cif")
-                if os.path.exists(pdb_out):
-                    print(f"{pdb_out} already found. No need to re-download")
+                if pdb == "":
+                    continue
                 else:
-                    print(f"Downloading and generating pdb: {pdb}")
-                    URL = f"https://files.rcsb.org/download/{pdb}.cif"
-                    response = requests.get(URL)
-                    with open(pdb_out, 'w') as out:
-                        out.write(response.text)
-                        # modify cif file to include new section. Change name to pdb
-                        # https://github.com/sokrypton/ColabFold/issues/177
-                        out.write('#\n')
-                        out.write('loop_\n')
-                        out.write('_pdbx_audit_revision_history.ordinal\n')
-                        out.write('_pdbx_audit_revision_history.data_content_type\n')
-                        out.write('_pdbx_audit_revision_history.major_revision\n')
-                        out.write('_pdbx_audit_revision_history.minor_revision\n')
-                        out.write('_pdbx_audit_revision_history.revision_date\n')
-                        out.write('1 \'Structure model\' 1 0 1971-01-01\n')
-                        out.write('#\n')
+                    yield pdb
+
+    def has_pdb(self, pdb_name):
+        for pdb in self.all_pdbs():
+            if pdb.casefold() == pdb_name.casefold():
+                return True
+        return False
+
+    def generate_pdbs(self, output_dir):
+
+        import requests
+        from Bio.PDB import MMCIFParser
+
+        multi_model_pdbs = []
+
+        for pdb in self.all_pdbs():
+            # download pdb if pdb id is provided
+            pdb_out = os.path.join(output_dir, f"{pdb.lower()}.cif")
+            if os.path.exists(pdb_out):
+                pass
+            else:
+                print(f"Downloading and generating pdb: {pdb}")
+                URL = f"https://files.rcsb.org/download/{pdb}.cif"
+                response = requests.get(URL)
+
+                out = StringIO()
+                out.write(response.text)
+                # modify cif file to include new section. Change name to pdb
+                # https://github.com/sokrypton/ColabFold/issues/177
+                out.write('#\n')
+                out.write('loop_\n')
+                out.write('_pdbx_audit_revision_history.ordinal\n')
+                out.write('_pdbx_audit_revision_history.data_content_type\n')
+                out.write('_pdbx_audit_revision_history.major_revision\n')
+                out.write('_pdbx_audit_revision_history.minor_revision\n')
+                out.write('_pdbx_audit_revision_history.revision_date\n')
+                out.write('1 \'Structure model\' 1 0 1971-01-01\n')
+                out.write('#\n')
 
 
-def parse_multimer_list_from_samplesheet(samplesheet, single_multimer_name=None, include_single_prots=True) -> List[Multimer]:
+                # validate PDBs, examples of bad (multi model) : 2KHW,2KTF
+
+                pdb_as_string = out.getvalue()
+                parser = MMCIFParser(QUIET=True)
+                structure = parser.get_structure("none", StringIO(pdb_as_string))
+                models = list(structure.get_models())
+                model_count = len(models)
+                if model_count != 1:
+                    yield f"{pdb} on line {self.line_number_in_samplesheet} has {model_count} models"
+                else:
+                    with open(pdb_out, "w") as f:
+                       f.write(pdb_as_string)
+
+
+def parse_multimer_list_from_samplesheet(samplesheet, single_multimer_name=None, include_single_prots=True):
 
     def rows():
         with open(samplesheet) as f:
@@ -124,7 +181,7 @@ def parse_multimer_list_from_samplesheet(samplesheet, single_multimer_name=None,
                 elif line.startswith("#"):
                     pass
                 else:
-                    yield c, line.split("\t")
+                    yield c, [field.strip('"') for field in line.split("\t")]
 
                 c +=1
 
@@ -136,10 +193,15 @@ def parse_multimer_list_from_samplesheet(samplesheet, single_multimer_name=None,
                     name = prot_rows[0]
                     if "-" in name:
                         raise Exception(f"illegal prot name on line {line_number}, can't use '-' ")
-                    n_occurences = int(prot_rows[1])
-                    pdb = prot_rows[2]
-                    seq = prot_rows[3]
-                    yield Protein(name, n_occurences, pdb, seq)
+                    if " " in name:
+                        raise Exception(f"illegal prot name on line {line_number}, can't use ' ' ")
+                    try:
+                        n_occurences = int(prot_rows[1])
+                        pdb = prot_rows[2]
+                        seq = prot_rows[3]
+                        yield Protein(name, n_occurences, pdb, seq)
+                    except IndexError:
+                        raise Exception(f"to few columns in line {line_number}")
 
             m = Multimer(list(prots_in_row()), line_number)
 
@@ -174,7 +236,7 @@ def parse_multimer_list_from_samplesheet(samplesheet, single_multimer_name=None,
     check_duplicates()
 
     if single_multimer_name is None:
-        return res
+        return MultimerBatch(res)
 
     if len(res) == 0:
         raise Exception(f"multimer {single_multimer_name} not found in {samplesheet}")
@@ -182,10 +244,60 @@ def parse_multimer_list_from_samplesheet(samplesheet, single_multimer_name=None,
         lines = [m.line_number_in_samplesheet for m in res]
         raise Exception(f"multiple multimer with name {single_multimer_name} found in {samplesheet}, lines: {lines}")
 
-    return res
+    return MultimerBatch(res)
+
+
+class MultimerBatch:
+
+    def __init__(self, multimer_list):
+        self.multimer_list = multimer_list
+
+    def multimer_by_name(self, name):
+        for m in self.multimer_list:
+            if m.multimer_name() == name:
+                return m
+        raise Exception(f"could not find multimer with name {name}")
+
+    def has_pdbs(self):
+        for m in self.multimer_list:
+            if m.has_pdbs():
+                return True
+        return False
+
+    def lines_of_pdb(self, pdb_name):
+        for m in self.multimer_list:
+            if m.has_pdb(pdb_name):
+                yield m.line_number_in_samplesheet
+
+    def download_pdbs(self, folder):
+
+        def gen_and_yield_errors():
+            for m in self.multimer_list:
+                yield from m.generate_pdbs(folder)
+
+        return list(gen_and_yield_errors())
+
+    def all_pdps_in_folder(self, folder):
+        for m in self.multimer_list:
+            for pdb in m.all_pdbs():
+                if not os.path.exists(os.path.join(folder, f"{pdb.lower()}.cif")):
+                    return False
+        return True
+
+    def __iter__(self):
+        yield from self.multimer_list
 
 
 def file_path():
     return __file__
 
+
+if __name__ == '__main__':
+
+
+    multimer_batch = parse_multimer_list_from_samplesheet("/home/maxl/dev/Marechal_pipelines/example/test-case-1/samplesheet.tsv")
+
+    pdb_path = Path("/home/maxl/dev/Marechal_pipelines/tmp/pdbs")
+
+    multimer_batch.download_pdbs(pdb_path)
 

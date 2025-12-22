@@ -1,0 +1,15 @@
+
+[all:vars]
+ansible_ssh_user=maxl
+admin_email=maxime.levesque@gmail.com
+
+
+[web_gasket]
+dpfold
+
+[web_gasket:vars]
+git_branch=main
+web_session_key="a--hardkey3547jg30495gj"
+web_gasket_data_dir=/jbod2/dpfold-data
+USE_CC_ROBOT=True
+cc_username=maxl

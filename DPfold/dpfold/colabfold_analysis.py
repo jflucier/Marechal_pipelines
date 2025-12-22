@@ -664,8 +664,8 @@ def analyze_multimer(
         :param min_plddt (float): The minimum PLDDT score required for a residue to be considered "well-modeled".
         :param max_pae (float): The maximum predicted alignment error allowed for a residue to be considered "well-modeled".
         :param pae_mode (str): The method to use for calculating predicted alignment error (PAE). Possible values are "min" or "avg".
-        :param valid_aas (str): A string representing the set of amino acids have both residues in a pair have to belong to in order for that pair to be a contact. 
-        :param ignore_pae (bool): A boolean option allows to analyze complexes purely based on PDB files and ignores any PAE analysis. 
+        :param valid_aas (str): A string representing the set of amino acids have both residues in a pair have to belong to in order for that pair to be a contact.
+        :param ignore_pae (bool): A boolean option allows to analyze complexes purely based on PDB files and ignores any PAE analysis.
     """
 
     summary_stats = {}
@@ -678,16 +678,37 @@ def analyze_multimer(
     #record which interface has the best score (ie the most high confidence contacts so we can report it out later)
     best_interface_stats = None
 
+    def exclude(f):
+        if f.endswith("timings.json"):
+            return True
+        if "unrelaxed" in f:
+            return True
+
+        if f.endswith("aligned_error_v1.json"):
+            return True
+        if f.endswith("config.json"):
+            return True
+        return False
+
     paes_and_pdbs = [
         f for f in glob.glob(os.path.join(input_folder, '*.pdb')) + glob.glob(os.path.join(input_folder, '*.json'))
-        if not f.endswith("timings.json")
+        if not exclude(f)
     ]
 
-    print(f"\n".join(paes_and_pdbs))
+    print("pdbs:")
+    print('\n'.join(paes_and_pdbs))
+    print("\n")
 
     def combine_pdbs_and_paes_into_2_tuples():
         def k(path):
-            return os.path.basename(path).split('.')[0]
+
+            bn = os.path.basename(path)
+            rank_idx = bn.find('_rank_')
+            if rank_idx == -1:
+                raise Exception(f"Could not find '_rank_' in {bn}")
+            m = bn[rank_idx:]
+
+            return m.split('.')[0]
         for _, t in itertools.groupby(sorted(paes_and_pdbs, key=k), key=k):
 
             def json_first(path):
@@ -708,11 +729,22 @@ def analyze_multimer(
 
     for pdb_filename, pae_filename in combine_pdbs_and_paes_into_2_tuples():
 
+
+        print(f"\n{os.path.basename(pdb_filename)}, {os.path.basename(pae_filename)}")
+
         model_num = get_af_model_num(pdb_filename)
         print(f"-> map chain labels found in pdb to protein names for model {model_num}")
         chain_list = get_chain_list_names(pdb_filename)
 
-        chain_list_lbl = list(lbls_from_fasta())
+        #chain_list_lbl = list(lbls_from_fasta())
+        chain_list_lbl = multimer_name.split("-")
+
+        fold_name = os.environ.get('fold_name')
+
+        if fold_name is not None and fold_name != "":
+            print(f"Will use fold_name: {fold_name}")
+            chain_list_lbl = fold_name.split("-")
+
 
         print(f"chain list: {chain_list}")
         print(f"chain list lbl: {chain_list_lbl}")
@@ -964,6 +996,9 @@ def file_path(path):
     else:
         raise argparse.ArgumentTypeError(f"path {path} does not exist")
 
+def code_path():
+    return __file__
+
 
 def test():
     run([
@@ -972,9 +1007,6 @@ def test():
         "--fasta", "/home/maxl/dev/Marechal_pipelines/ti/tiny-openfold/output/of-align.RFWD3_PIP_3-PCNA_3/RFWD3_PIP_1-RFWD3_PIP_2-RFWD3_PIP_3-PCNA_1-PCNA_2-PCNA_3.fa",
         "--multimer_name", "RFWD3_PIP_1-RFWD3_PIP_2-RFWD3_PIP_3-PCNA_1-PCNA_2-PCNA_3"
     ])
-
-def code_path():
-    return __file__
 
 if __name__ == '__main__':
 

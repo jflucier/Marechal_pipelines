@@ -1,6 +1,6 @@
-[submodule "AF2multimer-analysis"]
-	path = AF2multimer-analysis
-	url = https://github.com/walterlab-HMS/AF2multimer-analysis.git
 [submodule "DryPipe"]
 	path = DryPipe
 	url = git@github.com:calculs-ca/DryPipe.git
+[submodule "WebGasket"]
+	path = WebGasket
+	url = git@github.com:calculs-ca/WebGasket.git

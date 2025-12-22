@@ -1,0 +1,54 @@
+
+- name: cleanup previous build
+  become: no
+  ansible.builtin.shell:
+    cmd: "{{item}}"
+    chdir: "{{src}}"
+  register: script_output
+  with_items:
+    - "rm -f *"
+  delegate_to: localhost
+
+- name: npm run build
+  become: no
+  ansible.builtin.command:
+    cmd: "{{item}}"
+    chdir: "{{spa_dir}}"
+  register: script_output
+  with_items:
+    - "node_modules/.bin/tailwindcss -i ./src/input.css -o ./build/style.css"
+    - "node build.mjs"
+  delegate_to: localhost
+
+
+- name: create dirs
+  become: yes
+  ansible.builtin.file:
+    path: "{{dst}}"
+    state: directory
+    owner: "{{service_user}}"
+    group: "{{service_user}}"
+
+
+- name: cleanup previous build
+  become: yes
+  become_user: "{{service_user}}"
+  ansible.builtin.shell:
+    cmd: "{{item}}"
+    chdir: "{{dst}}"
+  register: script_output
+  with_items:
+    - "rm -f *"
+
+
+- name: copy bundles
+  ansible.builtin.copy:
+    src: "{{item}}"
+    dest: "{{dst}}"
+    owner: "{{service_user}}"
+    group: "{{service_user}}"
+  with_fileglob:
+    - "{{src}}/*.js"
+    - "{{src}}/*.css"
+    - "{{src}}/*.js.map"
+  notify: "restart web-gasket"

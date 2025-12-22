@@ -1,0 +1,84 @@
+
+
+- name: "create service env file"
+  ansible.builtin.copy:
+    content: |
+          {% for item in env_vars -%}                                               
+          {{ item }}                                                            
+          {% endfor %}
+    dest: "/home/{{service_name}}/env"
+
+- name: "create env shell file"
+  ansible.builtin.copy:
+    content: |
+          {% for item in env_vars -%}                                               
+          export {{ item }}                                                            
+          {% endfor %}
+    dest: "/home/{{service_name}}/env.sh"
+
+- name: ensure group {{service_name}} exists
+  become: yes
+  group:
+    name: "{{service_name}}"
+    state: present
+
+- name: add user {{service_name}} to group {{service_name}}
+  become: yes
+  user:
+    name: "{{service_name}}"
+    shell: "/usr/bin/bash"
+    groups: "{{service_name}}"
+    group: "{{service_name}}"
+    state: present
+
+- name: create dirs
+  become: yes
+  ansible.builtin.file:
+    path: "{{item}}"
+    state: directory
+    owner: "{{service_name}}"
+    group: "{{service_name}}"
+  loop:
+    - "/{{service_name}}"
+    - "/{{service_name}}_venv"
+    - "{{log_dir}}"
+
+- name: Hack
+  become: yes
+  become_method: sudo
+  become_flags: -E
+  ansible.builtin.shell: '{{item}}'
+  with_items:
+      - "setfacl -m u:web-gasket:rw $SSH_AUTH_SOCK"
+      - "setfacl -m u:web-gasket:x $(dirname $SSH_AUTH_SOCK)"
+
+- name: git checkout
+  become: yes
+  become_method: sudo
+  become_flags: -E
+  become_user: "{{service_name}}"
+  ansible.builtin.git:
+    repo: '{{git_repo}}'
+    dest: "/{{service_name}}"
+    version: "{{branch}}"
+  notify: "restart {{service_name}}"
+
+- name: Only run "update_cache=yes" if the last one is more than 3600 seconds ago
+  ansible.builtin.apt:
+    update_cache: yes
+    cache_valid_time: 3600
+
+- name: apt installs
+  become: yes
+  ansible.builtin.apt:
+    pkg:
+    - python3-pip
+    - python3-virtualenv
+
+- name: "pip install in venv /{{service_name}}_venv"
+  become: yes
+  become_user: "{{service_name}}"
+  ansible.builtin.pip:
+    requirements: "{{reqs}}"
+    virtualenv: "/{{service_name}}_venv"
+
