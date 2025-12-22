@@ -52,7 +52,8 @@ def main():
         print(f"--- Categorizing expression for {args.refgene} ---")
         expr_df = pd.read_csv(args.input, usecols=['ModelID', args.refgene])
         expr_df['quartile'] = pd.qcut(expr_df[args.refgene], q=4, labels=['low', 'low-mid', 'high-mid', 'high'])
-        expr_df.rename(columns={'ModelID': 'model id', args.refgene: 'expression'}).to_csv(args.output, index=False)
+        output_fn = f"{args.output}.expression.tsv"
+        expr_df.rename(columns={'ModelID': 'model id', args.refgene: 'expression'}).to_csv(output_fn, index=False)
 
         # 2. Load CRISPR Data
         print("Loading CRISPR data...")
@@ -92,7 +93,7 @@ def main():
         # 6. Save Final Files
         for key in results_accum:
             if results_accum[key]:
-                output_fn = f"spearman.{key}.tsv"
+                output_fn = f"{args.output}.spearman.{key}.tsv"
                 pd.concat(results_accum[key]).to_csv(output_fn, sep='\t', index=False)
                 print(f"Final file saved: {output_fn}")
 
