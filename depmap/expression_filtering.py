@@ -26,9 +26,9 @@ def get_top_correlations_list(target_gene, crispr_df, model_subset):
 
     # Get top 200 absolute values
     corr_df['abs_val'] = corr_df['spearman correlation value'].abs()
-    top_200 = corr_df.sort_values(by='abs_val', ascending=False).head(200)
+    top_100 = corr_df.sort_values(by='abs_val', ascending=False).head(100)
 
-    return top_200[['gene', 'other gene', 'spearman correlation value']]
+    return top_100[['gene', 'other gene', 'spearman correlation value']]
 
 
 def main():
