@@ -4,48 +4,36 @@ import sys
 
 
 def main():
-    # Set up command line argument parsing
-    parser = argparse.ArgumentParser(description='Filter DepMap expression data by quartiles for a specific gene.')
-
-    # Define parameters
+    parser = argparse.ArgumentParser(description='Categorize all models by gene expression quartiles.')
     parser.add_argument('-i', '--input', required=True, help='Path to the input CSV file')
-    parser.add_argument('-o', '--output', required=True, help='Path to save the output CSV file')
-    parser.add_argument('-g', '--gene', default='SLFN11 (91607)', help='The gene column name (default: SLFN11 (91607))')
+    parser.add_argument('-o', '--output', required=True, help='Path for output CSV')
+    parser.add_argument('-g', '--gene', default='SLFN11 (91607)', help='Gene column name')
 
     args = parser.parse_args()
 
     try:
-        # Load only necessary columns to save memory
+        # Load data
         df = pd.read_csv(args.input, usecols=['ModelID', args.gene])
 
-        # Calculate quartiles (25th and 75th percentiles)
-        q1 = df[args.gene].quantile(0.25)
-        q3 = df[args.gene].quantile(0.75)
+        # Assign quartile labels to ALL models
+        # q=4 creates quartiles: [0-25%, 25-50%, 50-75%, 75-100%]
+        labels = ['low', 'low-mid', 'high-mid', 'high']
+        df['quartile'] = pd.qcut(df[args.gene], q=4, labels=labels)
 
-        # Filter for low (<= Q1) and high (>= Q3) expression
-        low_expr = df[df[args.gene] <= q1].copy()
-        high_expr = df[df[args.gene] >= q3].copy()
+        # Rename columns to match requirements
+        result = df.rename(columns={'ModelID': 'model id', args.gene: 'expression'})
 
-        # Add quartile labels
-        low_expr['quartile'] = 'low'
-        high_expr['quartile'] = 'high'
-
-        # Combine and format results
-        result = pd.concat([low_expr, high_expr])
-        result = result.rename(columns={'ModelID': 'model id', args.gene: 'expression'})
-
-        # Save to file
+        # Save all rows to CSV
         result[['model id', 'expression', 'quartile']].to_csv(args.output, index=False)
 
-        print(f"Processing complete.")
+        print(f"Success! Processed {len(result)} models.")
         print(f"Output saved to: {args.output}")
-        print(f"Thresholds for {args.gene}: Q1={q1:.4f}, Q3={q3:.4f}")
 
     except FileNotFoundError:
-        print(f"Error: The file '{args.input}' was not found.")
+        print(f"Error: File '{args.input}' not found.")
         sys.exit(1)
     except KeyError:
-        print(f"Error: Column '{args.gene}' or 'ModelID' not found in the input file.")
+        print(f"Error: Column '{args.gene}' or 'ModelID' not found.")
         sys.exit(1)
 
 
