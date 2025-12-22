@@ -5,7 +5,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 
 
 def find_full_column_name(short_name, columns):
-    """Matches a gene symbol (e.g., 'BRCA1') to its DepMap column (e.g., 'BRCA1 (672)')."""
+    """Matches a gene symbol to its DepMap column."""
     if short_name in columns:
         return short_name
     matches = [c for c in columns if c.startswith(f"{short_name} (")]
@@ -13,7 +13,7 @@ def find_full_column_name(short_name, columns):
 
 
 def process_single_gene(ddr_gene, crispr_df, subsets):
-    """Worker function to calculate correlations for one gene across all subsets."""
+    """Worker function to calculate correlations."""
     gene_results = {"all": None, "low": None, "high": None}
 
     for key, model_ids in subsets.items():
@@ -21,7 +21,6 @@ def process_single_gene(ddr_gene, crispr_df, subsets):
         if subset_df.empty:
             continue
 
-        # Calculate spearman correlation
         correlations = subset_df.corrwith(subset_df[ddr_gene], method='spearman')
         correlations = correlations.drop(labels=[ddr_gene], errors='ignore').dropna()
 
@@ -29,7 +28,6 @@ def process_single_gene(ddr_gene, crispr_df, subsets):
         corr_df.columns = ['other gene', 'spearman correlation value']
         corr_df['gene'] = ddr_gene
 
-        # Get top 200 absolute values
         corr_df['abs_val'] = corr_df['spearman correlation value'].abs()
         top_200 = corr_df.sort_values(by='abs_val', ascending=False).head(200)
         gene_results[key] = top_200[['gene', 'other gene', 'spearman correlation value']]
@@ -44,16 +42,40 @@ def main():
     parser.add_argument('-g', '--refgene', default='SLFN11 (91607)', help='Reference gene column')
     parser.add_argument('-ddr', '--ddrgenes', required=True, help='DDR gene list text file')
     parser.add_argument('-c', '--crispr_input', required=True, help='CRISPR score CSV')
-    parser.add_argument('-t', '--threads', type=int, default=4, help='Number of worker processes (default: 4)')
+    parser.add_argument('-t', '--threads', type=int, default=4, help='Number of worker processes')
     args = parser.parse_args()
 
     try:
-        # 1. Categorize Expression
-        print(f"--- Categorizing expression for {args.refgene} ---")
-        expr_df = pd.read_csv(args.input, usecols=['ModelID', args.refgene])
+        # 1. Flexible Header Detection for Expression File
+        # Read only the first row to check column names
+        header_check = pd.read_csv(args.input, nrows=0)
+        all_cols = header_check.columns.tolist()
+
+        # The first column is usually the ID (ModelID or ProfileID)
+        id_col_name = all_cols[0]
+
+        # Verify the reference gene exists
+        if args.refgene not in all_cols:
+            # Try to find it if it was passed as a symbol
+            found_gene = find_full_column_name(args.refgene.split(' ')[0], all_cols)
+            if found_gene:
+                args.refgene = found_gene
+            else:
+                raise KeyError(f"Gene '{args.refgene}' not found in expression file.")
+
+        print(f"--- Categorizing expression for {args.refgene} (ID col: {id_col_name}) ---")
+
+        # Load data using identified column names
+        expr_df = pd.read_csv(args.input, usecols=[id_col_name, args.refgene])
+
+        # Standardize ID column name to ModelID for internal logic
+        expr_df = expr_df.rename(columns={id_col_name: 'ModelID'})
+
         expr_df['quartile'] = pd.qcut(expr_df[args.refgene], q=4, labels=['low', 'low-mid', 'high-mid', 'high'])
+
         output_fn = f"{args.output}.expression.tsv"
-        expr_df.rename(columns={'ModelID': 'model id', args.refgene: 'expression'}).to_csv(output_fn, index=False)
+        expr_df.rename(columns={'ModelID': 'model id', args.refgene: 'expression'}).to_csv(output_fn, index=False,
+                                                                                           sep='\t')
 
         # 2. Load CRISPR Data
         print("Loading CRISPR data...")
@@ -79,7 +101,6 @@ def main():
         print(f"Starting parallel processing with {args.threads} workers for {total_genes} genes...")
 
         with ProcessPoolExecutor(max_workers=args.threads) as executor:
-            # Map the worker function to ddr_list
             futures = {executor.submit(process_single_gene, gene, crispr_df, subsets): gene for gene in ddr_list}
 
             for i, future in enumerate(as_completed(futures), 1):
