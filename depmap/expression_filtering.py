@@ -23,6 +23,7 @@ def process_single_gene(ddr_gene, crispr_df, model_ids_dict):
         if subset_df.empty or ddr_gene not in subset_df.columns:
             continue
 
+        # Spearman correlation
         correlations = subset_df.corrwith(subset_df[ddr_gene], method='spearman')
         correlations = correlations.drop(labels=[ddr_gene], errors='ignore').dropna()
 
@@ -34,7 +35,6 @@ def process_single_gene(ddr_gene, crispr_df, model_ids_dict):
         top_200 = corr_df.sort_values(by='abs_val', ascending=False).head(200)
         local_gene_results[key] = top_200[['gene', 'other gene', 'spearman correlation value']]
 
-    # Return gene name and the dictionary of results
     return ddr_gene, local_gene_results
 
 
@@ -56,14 +56,24 @@ def main():
     try:
         # 1. Load Expression and Categorize
         header_check = pd.read_csv(args.input, nrows=0)
-        id_col = header_check.columns[0]  # Fix: get the *name* of the first column
-        expr_gene = find_full_column_name(args.refgene.split(' ')[0], header_check.columns)
+        id_col_name = header_check.columns[0]  # Get the name of the first column
 
-        print(f"--- Categorizing expression for {expr_gene} (ID col: {id_col}) ---")
-        expr_df = pd.read_csv(args.input, usecols=[id_col, expr_gene])
-        expr_df = expr_df.rename(columns={id_col: 'ModelID', expr_gene: 'expression_val'})
+        # Resolve the reference gene full name in expression file
+        expr_gene = find_full_column_name(args.refgene.split(' ')[0], header_check.columns)
+        if not expr_gene:
+            expr_gene = args.refgene  # Fallback to literal
+
+        print(f"--- Categorizing expression for {expr_gene} (ID col: {id_col_name}) ---")
+        expr_df = pd.read_csv(args.input, usecols=[id_col_name, expr_gene])
+        expr_df = expr_df.rename(columns={id_col_name: 'ModelID', expr_gene: 'expression_val'})
+
+        # Quartile calculation
         expr_df['quartile'] = pd.qcut(expr_df['expression_val'], q=4, labels=['low', 'low-mid', 'high-mid', 'high'])
-        expr_df.to_csv(f"{args.output}.expression.tsv", sep='\t', index=False)
+
+        # Save expression categorization
+        expr_df.rename(columns={'ModelID': 'model id', 'expression_val': 'expression'}).to_csv(
+            f"{args.output}.expression.tsv", sep='\t', index=False
+        )
 
         # 2. Load CRISPR
         print("Loading CRISPR data...")
@@ -71,10 +81,16 @@ def main():
 
         # 3. Match DDR Genes
         with open(args.ddrgenes, 'r') as f:
-            symbols = [line.strip().split(' ')[0] for line in f if line.strip()]  # Extract just the symbol
+            # Take only the first word (symbol) from each line
+            symbols = [line.strip().split(' ')[0] for line in f if line.strip()]
 
-        ddr_list = [find_full_column_name(s, crispr_df.columns) for s in symbols]
-        ddr_list = [g for g in ddr_list if g]
+        ddr_list = []
+        for s in symbols:
+            matched = find_full_column_name(s, crispr_df.columns)
+            if matched:
+                ddr_list.append(matched)
+            else:
+                print(f"  Warning: Gene symbol '{s}' not found in CRISPR columns.")
 
         # 4. Define Subsets
         subsets = {
@@ -85,21 +101,22 @@ def main():
 
         # 5. Parallel Collection
         master_results = {"all": [], "low": [], "high": []}
-        print(f"Running {len(ddr_list)} genes on {args.threads} threads...")
+        total_to_process = len(ddr_list)
+        print(f"Running {total_to_process} genes on {args.threads} threads...")
 
         with ProcessPoolExecutor(max_workers=args.threads) as executor:
+            # Submit tasks
             futures = {executor.submit(process_single_gene, gene, crispr_df, subsets): gene for gene in ddr_list}
 
             for i, future in enumerate(as_completed(futures), 1):
-                # We expect a dictionary back from the worker
-                gene_res_dict = future.result()
-                current_gene_name = futures[future]
-                print(f"Finished: {current_gene_name} ({i}/{len(ddr_list)})")
+                # FIXED: Correctly unpack the tuple (gene_name, result_dict)
+                gene_name, gene_res_dict = future.result()
+                print(f"Finished: {gene_name} ({i}/{total_to_process})")
 
                 for key, df in gene_res_dict.items():
-                    master_results[key].append(df)
+                    if df is not None:
+                        master_results[key].append(df)
 
-        # Add debug print statement to see if lists are populated
         print(
             f"Concatenating results: All={len(master_results['all'])}, Low={len(master_results['low'])}, High={len(master_results['high'])}")
 
@@ -113,9 +130,7 @@ def main():
             else:
                 print(f"No results to save for condition '{key}'.")
 
-
     except Exception as e:
-        # Print full error traceback for debugging
         print(f"\nCritical Error Occurred:")
         traceback.print_exc()
         sys.exit(1)
