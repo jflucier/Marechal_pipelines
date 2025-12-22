@@ -1,138 +1,106 @@
 import pandas as pd
 import argparse
 import sys
+import os
 from concurrent.futures import ProcessPoolExecutor, as_completed
 
 
 def find_full_column_name(short_name, columns):
-    """
-    Matches a gene symbol (e.g., 'BRCA1') to various DepMap column formats
-    (e.g., 'BRCA1 (672)' or 'BRCA1 (ENSG...)').
-    """
+    """Matches a gene symbol to DepMap formats (Entrez or Ensembl)."""
     if short_name in columns:
         return short_name
-
-    # Try finding symbol + Entrez ID (91607) format
-    matches_entrez = [c for c in columns if c.startswith(f"{short_name} (") and not '(ENSG' in c]
-    if matches_entrez:
-        return matches_entrez[0]
-
-    # Try finding symbol + Ensembl ID (ENSG...) format
-    matches_ensg = [c for c in columns if c.startswith(f"{short_name} (ENSG")]
-    if matches_ensg:
-        return matches_ensg[0]
-
-    return None
+    # Search for symbol at start of string followed by a space and parenthesis
+    matches = [c for c in columns if c.startswith(f"{short_name} (")]
+    return matches[0] if matches else None
 
 
 def process_single_gene(ddr_gene, crispr_df, subsets):
-    """Worker function to calculate correlations."""
-    gene_results = {"all": None, "low": None, "high": None}
-
+    """Worker function: returns results to the main process for collection."""
+    local_gene_results = {}
     for key, model_ids in subsets.items():
         subset_df = crispr_df.loc[crispr_df.index.isin(model_ids)]
-        if subset_df.empty:
+        if subset_df.empty or ddr_gene not in subset_df.columns:
             continue
 
+        # Spearman correlation against all columns
         correlations = subset_df.corrwith(subset_df[ddr_gene], method='spearman')
         correlations = correlations.drop(labels=[ddr_gene], errors='ignore').dropna()
 
         corr_df = correlations.reset_index()
         corr_df.columns = ['other gene', 'spearman correlation value']
         corr_df['gene'] = ddr_gene
-
         corr_df['abs_val'] = corr_df['spearman correlation value'].abs()
-        top_200 = corr_df.sort_values(by='abs_val', ascending=False).head(200)
-        gene_results[key] = top_200[['gene', 'other gene', 'spearman correlation value']]
 
-    return ddr_gene, gene_results
+        top_200 = corr_df.sort_values(by='abs_val', ascending=False).head(200)
+        local_gene_results[key] = top_200[['gene', 'other gene', 'spearman correlation value']]
+
+    return local_gene_results
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Parallelized CRISPR correlation by expression quartiles.')
+    parser = argparse.ArgumentParser(description='Parallelized CRISPR correlation.')
     parser.add_argument('-i', '--input', required=True, help='Input expression CSV')
-    parser.add_argument('-o', '--output', required=True, help='Output prefix for files (e.g., correlation/24Q4)')
-    parser.add_argument('-g', '--refgene', default='SLFN11', help='Reference gene symbol or name (e.g. SLFN11 (91607))')
-    parser.add_argument('-ddr', '--ddrgenes', required=True, help='DDR gene list text file')
+    parser.add_argument('-o', '--output', required=True, help='Output prefix (e.g., correlation/24Q4)')
+    parser.add_argument('-g', '--refgene', default='SLFN11', help='Reference gene symbol')
+    parser.add_argument('-ddr', '--ddrgenes', required=True, help='DDR gene list file')
     parser.add_argument('-c', '--crispr_input', required=True, help='CRISPR score CSV')
-    parser.add_argument('-t', '--threads', type=int, default=4, help='Number of worker processes')
+    parser.add_argument('-t', '--threads', type=int, default=4, help='Number of threads')
     args = parser.parse_args()
 
+    # Ensure output directory exists
+    out_dir = os.path.dirname(args.output)
+    if out_dir and not os.path.exists(out_dir):
+        os.makedirs(out_dir)
+
     try:
-        # 1. Flexible Header Detection for Expression File
+        # 1. Load Expression and Categorize
         header_check = pd.read_csv(args.input, nrows=0)
-        all_expr_cols = header_check.columns.tolist()
-        id_col_name = all_expr_cols[0]  # Assume the very first column is the ID
+        id_col = header_check.columns[0]
+        expr_gene = find_full_column_name(args.refgene.split(' ')[0], header_check.columns)
 
-        # Verify the reference gene exists
-        ref_gene_name = find_full_column_name(args.refgene.split(' ')[0], all_expr_cols)
-        if not ref_gene_name:
-            raise KeyError(f"Reference gene '{args.refgene}' not found in expression file headers.")
+        print(f"--- Categorizing expression for {expr_gene} ---")
+        expr_df = pd.read_csv(args.input, usecols=[id_col, expr_gene])
+        expr_df['quartile'] = pd.qcut(expr_df[expr_gene], q=4, labels=['low', 'low-mid', 'high-mid', 'high'])
+        expr_df.to_csv(f"{args.output}.expression.tsv", sep='\t', index=False)
 
-        print(f"--- Categorizing expression for {ref_gene_name} (ID col: {id_col_name}) ---")
-
-        # Load data using identified column names
-        expr_df = pd.read_csv(args.input, usecols=[id_col_name, ref_gene_name])
-        expr_df = expr_df.rename(columns={id_col_name: 'ModelID', ref_gene_name: 'expression_val'})
-
-        expr_df['quartile'] = pd.qcut(expr_df['expression_val'], q=4, labels=['low', 'low-mid', 'high-mid', 'high'])
-
-        output_fn_expr = f"{args.output}.expression.tsv"
-        expr_df.rename(columns={'ModelID': 'model id', 'expression_val': 'expression'}).to_csv(output_fn_expr,
-                                                                                               index=False, sep='\t')
-
-        # 2. Load CRISPR Data
+        # 2. Load CRISPR
         print("Loading CRISPR data...")
         crispr_df = pd.read_csv(args.crispr_input, index_col=0)
-        all_crispr_cols = crispr_df.columns.tolist()
 
-        # 3. Load and Match DDR Genes
+        # 3. Match DDR Genes
         with open(args.ddrgenes, 'r') as f:
-            raw_list = [line.strip().split(' ')[0] for line in f if line.strip()]  # Extract just the symbol
+            symbols = [line.strip().split(' ')[0] for line in f if line.strip()]
 
-        ddr_list = []
-        for g_symbol in raw_list:
-            full_name = find_full_column_name(g_symbol, all_crispr_cols)
-            if full_name:
-                ddr_list.append(full_name)
-            else:
-                print(f"  Warning: Gene '{g_symbol}' not found in CRISPR columns.")
+        ddr_list = [find_full_column_name(s, crispr_df.columns) for s in symbols]
+        ddr_list = [g for g in ddr_list if g]
 
-        total_genes = len(ddr_list)
-        if total_genes == 0:
-            print("Error: No valid DDR genes found in the CRISPR dataset.")
-            sys.exit(1)
-
-        # ... (Steps 4, 5, 6 remain the same as previous script) ...
-        # Define Subsets
         subsets = {
-            "all": expr_df['ModelID'].tolist(),
-            "low": expr_df[expr_df['quartile'] == 'low']['ModelID'].tolist(),
-            "high": expr_df[expr_df['quartile'] == 'high']['ModelID'].tolist()
+            "all": expr_df[id_col].tolist(),
+            "low": expr_df[expr_df['quartile'] == 'low'][id_col].tolist(),
+            "high": expr_df[expr_df['quartile'] == 'high'][id_col].tolist()
         }
 
-        # Parallel Processing
-        results_accum = {"all": [], "low": [], "high": []}
-        print(f"Starting parallel processing with {args.threads} workers for {total_genes} genes...")
+        # 4. Parallel Collection
+        master_results = {"all": [], "low": [], "high": []}
+        print(f"Running {len(ddr_list)} genes on {args.threads} threads...")
 
         with ProcessPoolExecutor(max_workers=args.threads) as executor:
+            # Submit tasks
             futures = {executor.submit(process_single_gene, gene, crispr_df, subsets): gene for gene in ddr_list}
 
             for i, future in enumerate(as_completed(futures), 1):
-                gene_name, gene_results = future.result()
-                print(f"Finished: {gene_name} ({i}/{total_genes})")
+                gene_res_dict = future.result()  # This brings the data back to main process
+                print(f"Finished: {futures[future]} ({i}/{len(ddr_list)})")
 
-                for key in results_accum:
-                    if gene_results[key] is not None:
-                        results_accum[key].append(gene_results[key])
+                for key, df in gene_res_dict.items():
+                    master_results[key].append(df)
 
-        # Save Final Files
-        for key in results_accum:
-            if results_accum[key]:
-                output_fn = f"{args.output}.spearman.{key}.tsv"
-                pd.concat(results_accum[key]).to_csv(output_fn, sep='\t', index=False)
-                print(f"Final file saved: {output_fn}")
-
+        # 5. Save Final Combined Files
+        for key in ["all", "low", "high"]:
+            if master_results[key]:
+                final_df = pd.concat(master_results[key])
+                final_df.to_csv(f"{args.output}.spearman.{key}.tsv", sep='\t', index=False)
+                print(f"Saved: {args.output}.spearman.{key}.tsv")
 
     except Exception as e:
         print(f"Error: {e}")
