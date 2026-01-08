@@ -11,8 +11,8 @@
 
 set -ex
 
-module load gcc/9.3.0 cuda/11.4 openmpi/4.0.3 openmm/8.0.0 mmseqs2/14-7e284 hh-suite/3.3.0 hmmer/3.2.1
-source $ENV
+#module load gcc/9.3.0 cuda/11.4 openmpi/4.0.3 openmm/8.0.0 mmseqs2/14-7e284 hh-suite/3.3.0 hmmer/3.2.1
+#source $ENV
 
 export TF_FORCE_UNIFIED_MEMORY="1"
 export XLA_PYTHON_CLIENT_MEM_FRACTION="4.0"
@@ -21,7 +21,7 @@ export TF_FORCE_GPU_ALLOW_GROWTH="true"
 
 echo "running fold on $align_a3m_file"
 colabfold_batch \
---use-gpu-relax --amber --num-relax 3 \
+--amber --num-relax 3 \
 --num-models 3 \
 --num-recycle 30 --recycle-early-stop-tolerance 0.5 \
 --model-type auto \

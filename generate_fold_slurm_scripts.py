@@ -263,7 +263,7 @@ if __name__ == '__main__':
         "--account",
         help="your allocation account (default: def-marechal)",
         type=str,
-        default="def-marechal"
+        default="def-jacquesp"
     )
 
     argParser.add_argument(
