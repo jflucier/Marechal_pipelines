@@ -34,11 +34,12 @@ def setup_fold(fold_engine, foldsheet, output_dir, account, db):
 
         print(f"Generating fold job {index} script in {workdir}")
         fasta_out = os.path.join(workdir, f"{index}.fa")
+        fn = ''
         if fold_engine == "colabfold":
             # generate fasta
             # fasta_out = os.path.join(workdir, f"{index}.fa")
             print(f"generating fasta: {fasta_out}")
-            generate_fasta_colabfold(fasta_out, row)
+            fn = generate_fasta_colabfold(fasta_out, row)
         else:
             # foldname = generate_foldname(row,"-")
             # fasta_out = os.path.join(workdir, f"{foldname}.fa")
@@ -50,7 +51,6 @@ def setup_fold(fold_engine, foldsheet, output_dir, account, db):
 
         # gen submit script:
         if fold_engine == "colabfold":
-            fn = generate_foldname(row,"_")
             generate_colabfold_scripts(output_dir, index, db, workdir, fasta_out, account, fn)
         else:
             generate_openfold_script(output_dir, row, db, workdir, fasta_out, account)
@@ -210,6 +210,8 @@ def generate_fasta_colabfold(fa_out, row):
     with open(fa_out, 'w') as f:
         f.write(f">{fa_header}\n")
         f.write(f"{seq}\n")
+
+    return fa_header
 
 
 def generate_fasta_openfold(fa_out, row):
