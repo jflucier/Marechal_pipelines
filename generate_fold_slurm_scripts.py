@@ -117,7 +117,7 @@ def generate_colabfold_fold_script(output_dir, index, db, workdir, account):
         'job_name': f"{index}",
         'colabfold_db': db,
         'outdir': f"{workdir}",
-        'align_a3m_file': f"{workdir}/0.a3m",
+        'align_a3m_file': f"{workdir}/{index}_1.a3m",
         'script_path': f"{script_path}",
         'account': account
     }
