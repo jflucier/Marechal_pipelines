@@ -40,7 +40,7 @@ def setup_fold(fold_engine, foldsheet, output_dir, account, db):
             print(f"generating fasta: {fasta_out}")
             generate_fasta_colabfold(fasta_out, row)
         else:
-            # foldname = generate_foldname(row)
+            # foldname = generate_foldname(row,"-")
             # fasta_out = os.path.join(workdir, f"{foldname}.fa")
             print(f"generating fasta: {fasta_out}")
             generate_fasta_openfold(fasta_out, row)
@@ -50,7 +50,8 @@ def setup_fold(fold_engine, foldsheet, output_dir, account, db):
 
         # gen submit script:
         if fold_engine == "colabfold":
-            generate_colabfold_scripts(output_dir, index, db, workdir, fasta_out, account)
+            fn = generate_foldname(row,"_")
+            generate_colabfold_scripts(output_dir, index, db, workdir, fasta_out, account, fn)
         else:
             generate_openfold_script(output_dir, row, db, workdir, fasta_out, account)
 
@@ -66,7 +67,7 @@ def setup_fold(fold_engine, foldsheet, output_dir, account, db):
 
 def generate_openfold_script(output_dir, row, db, workdir, fasta_out, account):
     index = row.index
-    foldname = generate_foldname(row)
+    foldname = generate_foldname(row,"-")
     script_path = os.path.dirname(__file__)
     tmpl_data = {
         'FOLD_NAME': f"{foldname}",
@@ -90,7 +91,7 @@ def generate_openfold_script(output_dir, row, db, workdir, fasta_out, account):
         o.write(f"sh {workdir}/submit_openfold.{foldname}.sh\n")
 
 
-def generate_foldname(row):
+def generate_foldname(row,sep):
     prot_nbr = 1
     fa_header = []
     while f"protein{prot_nbr}_name" in row.index:
@@ -102,22 +103,22 @@ def generate_foldname(row):
 
         prot_nbr = prot_nbr + 1
 
-    foldname = "-".join(fa_header)
+    foldname = sep.join(fa_header)
     return foldname
 
-def generate_colabfold_scripts(output_dir, index, db, workdir, fasta_out, account):
+def generate_colabfold_scripts(output_dir, index, db, workdir, fasta_out, account, fn):
     generate_colabfold_search_script(output_dir, index, db, workdir, fasta_out, account)
-    generate_colabfold_fold_script(output_dir, index, db, workdir, account)
+    generate_colabfold_fold_script(output_dir, index, db, workdir, account, fn)
 
 
-def generate_colabfold_fold_script(output_dir, index, db, workdir, account):
+def generate_colabfold_fold_script(output_dir, index, db, workdir, account, fn):
     script_path = os.path.dirname(__file__)
     fold_tmpl_data = {
         'ENV': ENV,
         'job_name': f"{index}",
         'colabfold_db': db,
         'outdir': f"{workdir}",
-        'align_a3m_file': f"{workdir}/{index}_1.a3m",
+        'align_a3m_file': f"{workdir}/{fn}_1.a3m",
         'script_path': f"{script_path}",
         'account': account
     }
