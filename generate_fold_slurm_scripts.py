@@ -28,9 +28,9 @@ def setup_fold(fold_engine, foldsheet, output_dir, account, db):
         workdir = os.path.join(output_dir, index)
         if not os.path.exists(workdir):
             os.makedirs(workdir)
-        else:
-            print(f"Multimer name duplicated: {index}. They must be unique. Please modify your input TSV: {foldsheet} ")
-            sys.exit(0)
+        # else:
+        #     print(f"Multimer name duplicated: {index}. They must be unique. Please modify your input TSV: {foldsheet} ")
+        #     sys.exit(0)
 
         print(f"Generating fold job {index} script in {workdir}")
         fasta_out = os.path.join(workdir, f"{index}.fa")
