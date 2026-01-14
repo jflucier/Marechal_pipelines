@@ -10,7 +10,7 @@ AF_VERSION = "2.3.2"
 ENV = f"/home/jflucier/projects/def-marechal/programs/colabfold_af{AF_VERSION}_env/bin/activate"
 
 
-def setup_fold(fold_engine, foldsheet, output_dir, account, db):
+def setup_fold(fold_engine, foldsheet, output_dir, account, queue, db):
     folds = pd.read_csv(foldsheet, sep='\t', index_col="multimer_name")
 
     # cleanup submission script if exists
@@ -51,7 +51,7 @@ def setup_fold(fold_engine, foldsheet, output_dir, account, db):
 
         # gen submit script:
         if fold_engine == "colabfold":
-            generate_colabfold_scripts(output_dir, index, db, workdir, fasta_out, account, fn)
+            generate_colabfold_scripts(output_dir, index, db, workdir, fasta_out, account, queue, fn)
         else:
             generate_openfold_script(output_dir, row, db, workdir, fasta_out, account)
 
@@ -106,12 +106,12 @@ def generate_foldname(row,sep):
     foldname = sep.join(fa_header)
     return foldname
 
-def generate_colabfold_scripts(output_dir, index, db, workdir, fasta_out, account, fn):
-    generate_colabfold_search_script(output_dir, index, db, workdir, fasta_out, account)
-    generate_colabfold_fold_script(output_dir, index, db, workdir, account, fn)
+def generate_colabfold_scripts(output_dir, index, db, workdir, fasta_out, account, queue, fn):
+    generate_colabfold_search_script(output_dir, index, db, workdir, fasta_out, account, queue)
+    generate_colabfold_fold_script(output_dir, index, db, workdir, account, queue, fn)
 
 
-def generate_colabfold_fold_script(output_dir, index, db, workdir, account, fn):
+def generate_colabfold_fold_script(output_dir, index, db, workdir, account, queue, fn):
     script_path = os.path.dirname(__file__)
     fold_tmpl_data = {
         'ENV': ENV,
@@ -120,7 +120,8 @@ def generate_colabfold_fold_script(output_dir, index, db, workdir, account, fn):
         'outdir': f"{workdir}",
         'align_a3m_file': f"{workdir}/{fn}.a3m",
         'script_path': f"{script_path}",
-        'account': account
+        'account': account,
+        'queue': queue
     }
 
     print(f"Generating colab fold submission script: {workdir}/submit_colab_fold.{index}.sh\n")
@@ -134,7 +135,7 @@ def generate_colabfold_fold_script(output_dir, index, db, workdir, account, fn):
         o.write(f"sbatch {workdir}/submit_colab_fold.{index}.sh\n")
 
 
-def generate_colabfold_search_script(output_dir, index, db, workdir, fasta_out, account):
+def generate_colabfold_search_script(output_dir, index, db, workdir, fasta_out, account, queue):
     script_path = os.path.dirname(__file__)
     search_tmpl_data = {
         'ENV': ENV,
@@ -142,7 +143,8 @@ def generate_colabfold_search_script(output_dir, index, db, workdir, fasta_out, 
         'colabfold_db': db,
         'outdir': f"{workdir}",
         'fasta': f"{fasta_out}",
-        'account': account
+        'account': account,
+        'queue': queue
     }
 
     print(f"Generating colab search submission script: {workdir}/submit_colab_search.{index}.sh\n")
@@ -270,6 +272,14 @@ if __name__ == '__main__':
     )
 
     argParser.add_argument(
+        "-q",
+        "--queue",
+        help="your slurm partition name (default: c-gh-bio)",
+        type=str,
+        default="c-gh-bio"
+    )
+
+    argParser.add_argument(
         "-db",
         "--database",
         help="your colabfold database path (default: /home/jflucier/projects/def-marechal/programs/colabfold_db)",
@@ -288,5 +298,6 @@ if __name__ == '__main__':
         args.foldsheet,
         args.output,
         args.account,
+        args.queue,
         args.database,
     )
