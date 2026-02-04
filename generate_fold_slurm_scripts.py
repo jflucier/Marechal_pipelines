@@ -10,7 +10,7 @@ AF_VERSION = "2.3.2"
 ENV = f"/home/jflucier/projects/def-marechal/programs/colabfold_af{AF_VERSION}_env/bin/activate"
 
 
-def setup_fold(fold_engine, foldsheet, output_dir, account, queue, db):
+def setup_fold(fold_engine, foldsheet, output_dir, account, queue, db, mem):
     folds = pd.read_csv(foldsheet, sep='\t', index_col="multimer_name")
 
     # cleanup submission script if exists
@@ -51,7 +51,7 @@ def setup_fold(fold_engine, foldsheet, output_dir, account, queue, db):
 
         # gen submit script:
         if fold_engine == "colabfold":
-            generate_colabfold_scripts(output_dir, index, db, workdir, fasta_out, account, queue, fn)
+            generate_colabfold_scripts(output_dir, index, db, workdir, fasta_out, account, queue, fn, mem)
         else:
             generate_openfold_script(output_dir, row, db, workdir, fasta_out, account)
 
@@ -106,9 +106,9 @@ def generate_foldname(row,sep):
     foldname = sep.join(fa_header)
     return foldname
 
-def generate_colabfold_scripts(output_dir, index, db, workdir, fasta_out, account, queue, fn):
+def generate_colabfold_scripts(output_dir, index, db, workdir, fasta_out, account, queue, fn, mem):
     generate_colabfold_search_script(output_dir, index, db, workdir, fasta_out, account, queue)
-    generate_colabfold_fold_script(output_dir, index, db, workdir, account, queue, fn)
+    generate_colabfold_fold_script(output_dir, index, db, workdir, account, queue, fn, mem)
 
 
 def generate_colabfold_fold_script(output_dir, index, db, workdir, account, queue, fn):
@@ -121,7 +121,8 @@ def generate_colabfold_fold_script(output_dir, index, db, workdir, account, queu
         'align_a3m_file': f"{workdir}/{fn}.a3m",
         'script_path': f"{script_path}",
         'account': account,
-        'queue': queue
+        'queue': queue,
+        'mem': mem
     }
 
     print(f"Generating colab fold submission script: {workdir}/submit_colab_fold.{index}.sh\n")
@@ -287,6 +288,14 @@ if __name__ == '__main__':
         default="/home/jflucier/projects/def-marechal/programs/colabfold_db"
     )
 
+    argParser.add_argument(
+        "-m",
+        "--fold_memory",
+        help="required memory for fold (default: 200G)",
+        type=str,
+        default="200G"
+    )
+
     args = argParser.parse_args()
 
     if args.fold_engine != "colabfold" and args.fold_engine != "openfold":
@@ -300,4 +309,5 @@ if __name__ == '__main__':
         args.account,
         args.queue,
         args.database,
+        args.fold_memory
     )
