@@ -111,7 +111,7 @@ def generate_colabfold_scripts(output_dir, index, db, workdir, fasta_out, accoun
     generate_colabfold_fold_script(output_dir, index, db, workdir, account, queue, fn, mem)
 
 
-def generate_colabfold_fold_script(output_dir, index, db, workdir, account, queue, fn):
+def generate_colabfold_fold_script(output_dir, index, db, workdir, account, queue, fn, mem):
     script_path = os.path.dirname(__file__)
     fold_tmpl_data = {
         'ENV': ENV,
