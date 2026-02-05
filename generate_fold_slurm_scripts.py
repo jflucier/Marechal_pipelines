@@ -108,10 +108,10 @@ def generate_foldname(row,sep):
 
 def generate_colabfold_scripts(output_dir, index, db, workdir, fasta_out, account, queue, fn, mem):
     generate_colabfold_search_script(output_dir, index, db, workdir, fasta_out, account, queue)
-    generate_colabfold_fold_script(output_dir, index, db, workdir, account, queue, fn, mem)
+    generate_colabfold_fold_script(output_dir, index, db, workdir, account, queue, fn, mem, fasta_out)
 
 
-def generate_colabfold_fold_script(output_dir, index, db, workdir, account, queue, fn, mem):
+def generate_colabfold_fold_script(output_dir, index, db, workdir, account, queue, fn, mem, fasta_out):
     script_path = os.path.dirname(__file__)
     fold_tmpl_data = {
         'ENV': ENV,
@@ -122,7 +122,8 @@ def generate_colabfold_fold_script(output_dir, index, db, workdir, account, queu
         'script_path': f"{script_path}",
         'account': account,
         'queue': queue,
-        'mem': mem
+        'mem': mem,
+        'fasta': f"{fasta_out}"
     }
 
     print(f"Generating colab fold submission script: {workdir}/submit_colab_fold.{index}.sh\n")
