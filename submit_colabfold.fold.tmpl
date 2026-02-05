@@ -36,12 +36,10 @@ echo "running AF2multimer-analysis on $outdir"
 mkdir -p $outdir/unrelaxed
 mv $outdir/*unrelaxed_* $outdir/unrelaxed/
 mv $outdir/*_predicted_aligned_error_v1.json $outdir/unrelaxed/
-b=$(basename $fasta)
-n=${b%.fa}
 python $script_path/AF2multimer-analysis/colabfold_analysis.py \
 --pred_folder $outdir \
 --out_folder $outdir \
---multimer_name ${n} \
+--multimer_name $job_name \
 --fasta $fasta
 
 echo "zipping results"
